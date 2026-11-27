@@ -1,0 +1,4790 @@
+diff --git a/launcher/Application.cpp b/launcher/Application.cpp
+index d855268..2d28a62 100644
+--- a/launcher/Application.cpp
++++ b/launcher/Application.cpp
+@@ -643,7 +643,6 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
+         // Theming
+         m_settings->registerSetting("IconTheme", QString());
+         m_settings->registerSetting("ApplicationTheme", QString());
+-        m_settings->registerSetting("BackgroundCat", QString("kitteh"));
+ 
+         // Remembered state
+         m_settings->registerSetting("LastUsedGroupForNewInstance", QString());
+@@ -790,10 +789,7 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
+         m_settings->registerSetting({ "PreLaunchCommand", "PreLaunchCmd" }, "");
+         m_settings->registerSetting({ "PostExitCommand", "PostExitCmd" }, "");
+ 
+-        // The cat
+-        m_settings->registerSetting("TheCat", false);
+-        m_settings->registerSetting("CatOpacity", 100);
+-        m_settings->registerSetting("CatFit", "fit");
++        m_settings->registerSetting("AnimatedBackground", true);
+ 
+         m_settings->registerSetting("StatusBarVisible", true);
+ 
+diff --git a/launcher/Application.h b/launcher/Application.h
+index 936e13d..b89adde 100644
+--- a/launcher/Application.h
++++ b/launcher/Application.h
+@@ -205,7 +205,6 @@ class Application : public QApplication {
+     void updateAllowedChanged(bool status);
+     void globalSettingsAboutToOpen();
+     void globalSettingsApplied();
+-    int currentCatChanged(int index);
+ 
+     void oauthReplyRecieved(QVariantMap);
+ 
+diff --git a/launcher/CMakeLists.txt b/launcher/CMakeLists.txt
+index 375b4e5..93f81d4 100644
+--- a/launcher/CMakeLists.txt
++++ b/launcher/CMakeLists.txt
+@@ -814,8 +814,6 @@ SET(LAUNCHER_SOURCES
+     Markdown.cpp
+ 
+     # Super secret!
+-    KonamiCode.h
+-    KonamiCode.cpp
+ 
+     # Icons
+     icons/MMCIcon.h
+@@ -870,6 +868,8 @@ SET(LAUNCHER_SOURCES
+     ui/themes/CustomTheme.h
+     ui/themes/DarkTheme.cpp
+     ui/themes/DarkTheme.h
++    ui/themes/AuroraTheme.cpp
++    ui/themes/AuroraTheme.h
+     ui/themes/ITheme.cpp
+     ui/themes/ITheme.h
+     ui/themes/HintOverrideProxyStyle.cpp
+@@ -880,10 +880,6 @@ SET(LAUNCHER_SOURCES
+     ui/themes/IconTheme.h
+     ui/themes/ThemeManager.cpp
+     ui/themes/ThemeManager.h
+-    ui/themes/CatPack.cpp
+-    ui/themes/CatPack.h
+-    ui/themes/CatPainter.cpp
+-    ui/themes/CatPainter.h
+ 
+     # Processes
+     LaunchMode.h
+@@ -1123,6 +1119,10 @@ SET(LAUNCHER_SOURCES
+     ui/widgets/JavaWizardWidget.h
+     ui/widgets/LabeledToolButton.cpp
+     ui/widgets/LabeledToolButton.h
++    ui/widgets/NightSkyBackground.cpp
++    ui/widgets/NightSkyBackground.h
++    ui/widgets/HomeSurface.cpp
++    ui/widgets/HomeSurface.h
+     ui/widgets/LanguageSelectionWidget.cpp
+     ui/widgets/LanguageSelectionWidget.h
+     ui/widgets/LogView.cpp
+@@ -1292,6 +1292,7 @@ qt_add_resources(LAUNCHER_RESOURCES
+     resources/flat/flat.qrc
+     resources/flat_white/flat_white.qrc
+     resources/documents/documents.qrc
++    resources/themes/themes.qrc
+     resources/shaders/shaders.qrc
+     "${CMAKE_CURRENT_BINARY_DIR}/../${Launcher_Branding_LogoQRC}"
+ )
+diff --git a/launcher/KonamiCode.cpp b/launcher/KonamiCode.cpp
+deleted file mode 100644
+index f9ec3b8..0000000
+--- a/launcher/KonamiCode.cpp
++++ /dev/null
+@@ -1,28 +0,0 @@
+-#include "KonamiCode.h"
+-
+-#include <QDebug>
+-#include <array>
+-
+-namespace {
+-const std::array<Qt::Key, 10> konamiCode = { { Qt::Key_Up, Qt::Key_Up, Qt::Key_Down, Qt::Key_Down, Qt::Key_Left, Qt::Key_Right,
+-                                               Qt::Key_Left, Qt::Key_Right, Qt::Key_B, Qt::Key_A } };
+-}
+-
+-KonamiCode::KonamiCode(QObject* parent) : QObject(parent) {}
+-
+-void KonamiCode::input(QEvent* event)
+-{
+-    if (event->type() == QEvent::KeyPress) {
+-        QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+-        auto key = Qt::Key(keyEvent->key());
+-        if (key == konamiCode[m_progress]) {
+-            m_progress++;
+-        } else {
+-            m_progress = 0;
+-        }
+-        if (m_progress == static_cast<int>(konamiCode.size())) {
+-            m_progress = 0;
+-            emit triggered();
+-        }
+-    }
+-}
+diff --git a/launcher/KonamiCode.h b/launcher/KonamiCode.h
+deleted file mode 100644
+index 5c21e2f..0000000
+--- a/launcher/KonamiCode.h
++++ /dev/null
+@@ -1,16 +0,0 @@
+-#pragma once
+-
+-#include <QKeyEvent>
+-
+-class KonamiCode : public QObject {
+-    Q_OBJECT
+-   public:
+-    KonamiCode(QObject* parent = 0);
+-    void input(QEvent* event);
+-
+-   signals:
+-    void triggered();
+-
+-   private:
+-    int m_progress = 0;
+-};
+diff --git a/launcher/resources/flat/flat.qrc b/launcher/resources/flat/flat.qrc
+index 2cc9f46..d2cb6d5 100644
+--- a/launcher/resources/flat/flat.qrc
++++ b/launcher/resources/flat/flat.qrc
+@@ -5,7 +5,6 @@
+         <file>scalable/about.svg</file>
+         <file>scalable/accounts.svg</file>
+         <file>scalable/bug.svg</file>
+-        <file>scalable/cat.svg</file>
+         <file>scalable/centralmods.svg</file>
+         <file>scalable/checkupdate.svg</file>
+         <file>scalable/copy.svg</file>
+diff --git a/launcher/resources/flat/scalable/cat.svg b/launcher/resources/flat/scalable/cat.svg
+deleted file mode 100644
+index e90763b..0000000
+--- a/launcher/resources/flat/scalable/cat.svg
++++ /dev/null
+@@ -1,3 +0,0 @@
+-<svg fill="#757575" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+-    <path d="M12,8L10.67,8.09C9.81,7.07 7.4,4.5 5,4.5C5,4.5 3.03,7.46 4.96,11.41C4.41,12.24 4.07,12.67 4,13.66L2.07,13.95L2.28,14.93L4.04,14.67L4.18,15.38L2.61,16.32L3.08,17.21L4.53,16.32C5.68,18.76 8.59,20 12,20C15.41,20 18.32,18.76 19.47,16.32L20.92,17.21L21.39,16.32L19.82,15.38L19.96,14.67L21.72,14.93L21.93,13.95L20,13.66C19.93,12.67 19.59,12.24 19.04,11.41C20.97,7.46 19,4.5 19,4.5C16.6,4.5 14.19,7.07 13.33,8.09L12,8M9,11A1,1 0 0,1 10,12A1,1 0 0,1 9,13A1,1 0 0,1 8,12A1,1 0 0,1 9,11M15,11A1,1 0 0,1 16,12A1,1 0 0,1 15,13A1,1 0 0,1 14,12A1,1 0 0,1 15,11M11,14H13L12.3,15.39C12.5,16.03 13.06,16.5 13.75,16.5A1.5,1.5 0 0,0 15.25,15H15.75A2,2 0 0,1 13.75,17C13,17 12.35,16.59 12,16V16H12C11.65,16.59 11,17 10.25,17A2,2 0 0,1 8.25,15H8.75A1.5,1.5 0 0,0 10.25,16.5C10.94,16.5 11.5,16.03 11.7,15.39L11,14Z"/>
+-</svg>
+\ No newline at end of file
+diff --git a/launcher/resources/flat_white/flat_white.qrc b/launcher/resources/flat_white/flat_white.qrc
+index b57c576..ef94364 100644
+--- a/launcher/resources/flat_white/flat_white.qrc
++++ b/launcher/resources/flat_white/flat_white.qrc
+@@ -5,7 +5,6 @@
+         <file>scalable/about.svg</file>
+         <file>scalable/accounts.svg</file>
+         <file>scalable/bug.svg</file>
+-        <file>scalable/cat.svg</file>
+         <file>scalable/centralmods.svg</file>
+         <file>scalable/checkupdate.svg</file>
+         <file>scalable/copy.svg</file>
+diff --git a/launcher/resources/flat_white/scalable/cat.svg b/launcher/resources/flat_white/scalable/cat.svg
+deleted file mode 100644
+index 93470c4..0000000
+--- a/launcher/resources/flat_white/scalable/cat.svg
++++ /dev/null
+@@ -1,3 +0,0 @@
+-<svg fill="#eeeeee" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+-    <path d="M12,8L10.67,8.09C9.81,7.07 7.4,4.5 5,4.5C5,4.5 3.03,7.46 4.96,11.41C4.41,12.24 4.07,12.67 4,13.66L2.07,13.95L2.28,14.93L4.04,14.67L4.18,15.38L2.61,16.32L3.08,17.21L4.53,16.32C5.68,18.76 8.59,20 12,20C15.41,20 18.32,18.76 19.47,16.32L20.92,17.21L21.39,16.32L19.82,15.38L19.96,14.67L21.72,14.93L21.93,13.95L20,13.66C19.93,12.67 19.59,12.24 19.04,11.41C20.97,7.46 19,4.5 19,4.5C16.6,4.5 14.19,7.07 13.33,8.09L12,8M9,11A1,1 0 0,1 10,12A1,1 0 0,1 9,13A1,1 0 0,1 8,12A1,1 0 0,1 9,11M15,11A1,1 0 0,1 16,12A1,1 0 0,1 15,13A1,1 0 0,1 14,12A1,1 0 0,1 15,11M11,14H13L12.3,15.39C12.5,16.03 13.06,16.5 13.75,16.5A1.5,1.5 0 0,0 15.25,15H15.75A2,2 0 0,1 13.75,17C13,17 12.35,16.59 12,16V16H12C11.65,16.59 11,17 10.25,17A2,2 0 0,1 8.25,15H8.75A1.5,1.5 0 0,0 10.25,16.5C10.94,16.5 11.5,16.03 11.7,15.39L11,14Z"/>
+-</svg>
+diff --git a/launcher/resources/multimc/16x16/cat.png b/launcher/resources/multimc/16x16/cat.png
+deleted file mode 100644
+index 73d5fa856eaa042d13c3d58d1adf55ce29869ec8..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 509
+zcmV<Z0RsMsP)<h;3K|Lk000e1NJLTq000mG000mO1^@s6AM^iV0005RNkl<Zc-ocE
+z1FRlF6o%pN%nGx=rLAq-wrxACt+<ZMm{lw_QroZ=qS}^D=bBqQ$-BY;|B6VAAKY<#
+zZrP}f-sIj3o8*&qryxMk0DIE$?B}o>d1smi_h>q3G5$wF=1wMWM!0U%G^cJwxn<ps
+zhwv{}joT(B_MW%F(9K`EAy{a{LI)R84ff)177bh7sz;0d7Y*HD0F}FB8FmaomW*6y
+zPVPH@XWew8uK=q5{7F?8K^Bi#6Y1Y}<T=N389;5_P-zG<u-)j>8fig4vnI5|2r|9@
+zlCjbb1^=w+JiN=~-U!mQMgOy99}|cj(`DC^<pX46{<9?`*G5pAK5d8D^|MXxSDsOj
+z;Gz`?QL?3cqVC;hb=z8~P1umJs2h7+ec43B1QiL6$@ulKuq3Jr!O(q?=;@i>gMj@P
+zuOcN=j|-HTmx5P7Wm$xxIYc){gnXv!CL1aup`zl1$~0__dI`=M$qQLT2Y9dvWn!=$
+zHNcn*A}1u-cU)8c^qepkXNNiLL^x_kUq{G2pP}e(^<C2#By1Q!6n0ro7LmFcgu5l-
+zO^!n@PCzbGEmrrl(g+PzKek9CoUoy5Dirk_RL_c9-E3KC00000NkvXXu0mjfOOoiN
+
+diff --git a/launcher/resources/multimc/22x22/cat.png b/launcher/resources/multimc/22x22/cat.png
+deleted file mode 100644
+index a5795b9b896d3ef41129e948c1fcea8469e6a29d..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 713
+zcmV;)0yh1LP)<h;3K|Lk000e1NJLTq000&M000&U1^@s6#I$TX0007zNkl<Zc-mqh
+z7ceq1`e?};3L=YX%NzL%^ND#dPzdI0$r-J4()VpOQn6a0DPyoiLQv*}zg4sbpj3JQ
+zw%m*YIQ~ChoZRGEwQbwBZQEmX><;RV?Q&4t?YOqxH7=90dS-UtZzj%%0~W$I&LeJM
+zX_R;hs9!X?d420oE;;6=tyze~tG)~9Q_no8j9hEYQs=1MPP>>*b<SZ|JYdAA>l+Od
+zR{@QyzFL-*9<s}^*Rip#JNe#iPuTD5my)ooz_cUqq8E1BVvh!SU4QERa_O-*-@W&C
+z2Q9TNTY;I5cSKB?yska@p50G9@Paqnl`R#R?N|gf$m@#ZZ@YTG9S`mJZlJ(i$9v>;
+z*>Shrx_x^W1@at^lgBkD-F?`Oo9{lzIjP!~a~gRZx#!6r<ejvdG`>Io$ZI_2bL9zl
+z99fC$lLi|x>e#LtV@-N*8Cwt9<)}x<V{HdK1WcaT7>)dbmgAaQ6WYyld_8IZbMGRL
+zgLXOkwV6T|L_;sqzzxUVg?>Tz-{G)p$YaauHlNO(Q(0H2vF9WzYb`8a!dxP3yCub_
+z88>qkPDIvEyoKMqt3}eN5C#T>i3-@#B&oG1ozw_wIVUz+DpYj~ulZbq_{KJ+U1D5^
+z5e6W^H()A?9!h^$vMd|l4KZSvjQ}FTz~N-ua!=0CtzBG~5jMb(A%fKh7Mqlx1MG5#
+zeyb1`0Z6kHP#BraHV#G%t2--(gH-;FCHM<i37RoN7*QsSeB5m^bWcHc>M_`}%V1Zr
+zOdVq!5D_I6v@a^ltW17$)qHM{??AqQ?CT}0`oBk-0SFT$xK2nA4AIzz2&9maMW7CV
+vKn9Y6^aNRzlC1(+p`@#p(diG!GDfTc)4&*K(26FP00000NkvXXu0mjfe+Wu)
+
+diff --git a/launcher/resources/multimc/24x24/cat.png b/launcher/resources/multimc/24x24/cat.png
+deleted file mode 100644
+index 08b0ab1b06dcce91939c9a25d469850c2d80ed00..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 809
+zcmV+^1J?YBP)<h;3K|Lk000e1NJLTq000;O000;W1^@s6;CDUv0008;Nkl<Zc-ms1
+z5NHW<ix{E{N(sxQaC7qdGEf0{it<Z5j&jWKa5nVobvE>A)R5I*rzoMe$<ruIk#gf1
+z87+Y1e?~@z|3Dg!ja99CqHHrbDK=kA)-a5Lnc@HPeI5U~1laxyO7Q&eT~hp?k5l-Z
+zi%zg5MTY14*Rm@~s9y%TI3&sGKMOn4e*rP>|87BM|Jj&1-kK^q#*l4zvPZFwou2y{
+zMn*<ZkYHc|ZlObZa^{948=T@<!XDv}+N>_4^P7o@31T27{>;hFrA4ygiS7j!uEqgZ
+zgm^_khTt?Dh;>OaILV`!Gu%F9qMnl3A2t>akRkYR2WhVMD3tLq4LL6+C<W3?42~kf
+z<wb%{hJIJM*?B-3iN)$fTi|OEv5JeGn`pxs8JX@7ZFsCpj=!X!EGaJkZ>nxvfz2#H
+zqvWtIM;HXqQ}wq8m$7ZzdVuW1ZLmt7DzB1dY}?MvbockywRze+C1ny`e|mcT!;d#(
+zUlhfuLlDLwN-b+=-Quk`W+Uhw$7{=;eRz0~v7oACNsW$bXTNBOzy;K^wvSm-dCzP(
+zd-C$>B+4c&gQ{9BZL>-;()h^5wtU{2C(M=|EB0OuT{vZ}Rn+1z8NN=U)aKUb-v*df
+ziN1gT5O}7>n<p<@3?ZUm6!WDmZ6l2XL?#uq5k>Q9n@8beVS3DLlt93ICdjFbbaf|{
+zOhLv7x(Fqvf9Q7?d25{$HC4xK5K&azJQa7*Qyz5$^HV|{BS=U^&=^?g%W`St-G5P~
+zlGOUAWGX@paH{+%|8|f?Cj?z)Pzwl#1pz>Vh6N-|LEjj5uj0cX_xaW)&CY6CM?^6^
+z0Okz@0tr#)X#D%#@I~<@7rCj(Q-R-xAFiQP2!{h|BkT6aYOqxxOPb`HT9m60X*ZEr
+zKm;qqw57&hfln#neMO%e_S*Fd8szVQf5U>9F|~GWq@m$b!Dou5Kx$Ydm=o{@V&Fka
+nkf!0A9vX`LZ_;Q2C8Ov8$Dl2#6%atZ00000NkvXXu0mjfB1Cu#
+
+diff --git a/launcher/resources/multimc/32x32/cat.png b/launcher/resources/multimc/32x32/cat.png
+deleted file mode 100644
+index b9b21e66347db967b271dedd8403747c8de0174f..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 1126
+zcmV-s1eyDZP)<h;3K|Lk000e1NJLTq001BW001Be1^@s6b9#F8000CnNkl<ZcmcH0
+z1B_fj7y#gV#@amFwz)jpzMwkAs^Zjf8mn%jMs*uEMs3^1^v%}o@?nzkWWIm?iISkG
+zXo7JC+Dx%$RO2|&9wlM1;TZnVQ_@!eCsU4j^Jvq`*ctbd%vIFmP_pVPjrko(lIbXd
+zn7HnPPNBb3k<oa{rjL22Rp>sL)V3!mf`Mp5!tp3+3!>(l7hDDYYJw&0jHG;Fa%DW%
+zeTmI6fJ0|?0KJX%!9V8&M!o8-oV809Kz*KP9RxE<t>EmX1HhP|0DsQmxGA@*SrUA*
+zWxiRbFn)kYuv(Mp5;uSu*D^a$H@7)GCjV0?oW#ldg$b2v@m}p%)9ftjzGBwcArP|C
+zB-<wnJndZ24%E-?EKI2aEG-WQhuIkt1s`u&-Qg_hxtm}~1sH~fgTp!|{MC*{eP7-5
+z?$Y#HpjPO^g<*ZkRfWL6p3nD|4qQpJrUQbYBf(+4EC`=)%$GD3v^_JZEuk_0^$>4-
+z%DG@`F6_9WmTURqu+H%gprdm1ut8<!k0Z!y5+jYg@Uf<qJ;}CA-Z-o&wv0WzU+*aF
+zID=y(FBn5{K;jhWsh()!g-^817bMv-{9cZtD4+-$FqDi#{0Atf6+olVzvHrK<rP40
+z&D2IYqx5?@f*`&Cl&l&U)n?%DoSabsi$3=DjBA<V6+mNt+ffJwOEZBJK3u0X01U<c
+z$$%Whn^P`MJD1Ri@v5vAtTe6md^mrNW4JE}3Mc={5L~lrW4?7t55BfsQ2@rjwKhga
+z*QkxCZsRoW-(AJE`D|XEb7uB>b8Y^TZ?L1S@41X#>=v)jzkTH*7tTAs`>&$bEeAH!
+zoBbBRBLWC#QIIadKkugpFHXJk7hso3)oo5-zPtF<^D;S@r{C|BM-R$D2L}e^u|sFl
+zk}afEFLOykn+O7VgM9+>dPy-gNf{ON*a;M<MDi+;UTjkR5p`Nagv$_-t*|Mx^aa>w
+ziS()?>lFld>;xtVB&Y;lF!(5~4>PZx7;=J-T#TUVP#@;9y!zbWeSudD>t*=kCt&2F
+z;DB79o9f!<7FI{~kRmH-Z#7OGXUQa(6QzyYOSg+r#yi2sfnm8IUh%>{j%@`sLRJ8s
+z?P4@H9y9K*)@w0_oPISynRh5+)mBnu)mC{$mG|hCeLB@ZL>*6;9*&&ZvLB|eG5ZDh
+z1Gv^OUIrSriDQ>c(WxAM-mupUUI(5B7FQX*+xB{bzV|_#a|p^7!^}u+Vm2b#Qb>BW
+zB>p1EU4g3x|0?pgVK*PMd~gB*Wgj<5kt?AOOo2@qG9gGmVbcw1F46Q7mbH07Qd_Oi
+zCPP7&6nUiRL&Kg3_7LO&ZASg%F{^7p%|4<Wp&g=@6mE<KAw>rP)B|mZV4{Griv|Qp
+sf{YWX1{>Gt$fI?`uztcY0c{681An$3k)&vNO8@`>07*qoM6N<$f(b1XdH?_b
+
+diff --git a/launcher/resources/multimc/48x48/cat.png b/launcher/resources/multimc/48x48/cat.png
+deleted file mode 100644
+index f84221d7a28d93cff07f5c0184bade4c9757b3ad..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 1928
+zcmV;32Y2|1P)<h;3K|Lk000e1NJLTq001xm001xu1^@s6R|5Hm000M1Nkl<Zc-qWZ
+z1CX>w5S<Te8)vU_wr$(K`~Cm1Z70Q`5ZktGC#Bf7(V0FK&bv3e`>Njgc3=1Obie*c
+zh~busGCSEg#wq(q7~yEE-gz<E08%1-JJky9^WNAj9|<FzP6@@nnpr|IQFj1G=@_lq
+z?WJ^0)a`Gi-^+4RN>0PS%T6vifP@*&pah91{k<-$<D|yi-n&xcbAF1oCH)g+iTf+j
+z>Had_k@6n?jVOr!wHFQhNH~G#_@hu9QYKM=T&l#cSEN>{|6!<Vhn0jG4y1&QP(g$1
+zub3?$;RJ)meEy=q(q0$rIJOoPI(|vCC*KAKp4kajmwN8|s*KiSNw{FFc8}Dev%iDF
+zcmshK-n#_={)OW9grxv3y5$H!9C%jGd_XZ74~$gp3Xd{sD;%2S`GstA1a_ZP4;S8g
+zDCpzmO97Pk`{4RVPle3th`H}=hKTn&i^p<Es4-c0K&mS$^=lNh8S2%h51aD(@<LlW
+zHG7+AEq|tvsbI4KM3`glYb_kIkPrZel(oNn=F%c>HJEkwO^ZjyIg)!xC@@;HXQ(-U
+z;8R~*Hc&g@mw1^(ehUdU#%uSF?kk_Utt_=3=yU~Y-24%be4OJrZ4k?4f1Y}o*_Ql)
+z?=uq%fwoKFIo@CKw^3?>Dc;prHvLdVS`#Ei_&}x5_$wTFC#4uH;lfDu?t@zL`+v?(
+zE(WJ522ENZ;{T!CFKAisEt`G<vz`)_3Obb$Xw3#99{C<eIB78YdUtEV;E&X+(>@)G
+z-6Bxoi+q-Sd#v8Qw=TOAJqk`q;8wY)e)4M8;`dZ%wn2i^4GP(ukKbzU&(KNk?X1ac
+zhgf^k;zeb_G*(6|zB#X-u6iyI1qmzhuTgS@1$xV-?#7y5oT@A+2;%9iJWYS0r)ts9
+zuppM?KeRm4S(J{@RxtFE(-h4_IL`@lpED8*u4a|}PMol;>K;!OU%S0%q>r#bSMk_Q
+z4rA21LU0y{f{3LsCx|2KPh=_mTe{$bMxleD${iV7Uq1B*Sj$rzzLjra%1WqcrA&p-
+zalojtfJtKorChz{|7cYP&?t4daeXsUyT6fzU1-J5v*9kniy)UOFr%1RT*lW70t1yw
+zWZ;fYdxNk5T}sZi8zVP&DS2V;X`5QE1p~DiCarbVoxrTK%>|trpUcMoP_uToKdlo5
+zV`f!y4SJ<jjUFyM=w7pu3LhaXP@mKNqSQ~zz;QfYXbb|&YUKd*b{t-iXmi~|SRgm4
+z<ZXNde_JGGS0YI9G*$_~F&99BJ>@1sA)<{y1_(|dgg5g_AuTrN%|NX(wo`!@R{Win
+z2Efw*Qf%&P2!(^t^CF^zCq(c|xJZbgCsL`MXq1t>Ns}6t`8)}D!&?1xta|6%3Ak+T
+zE3HIhwf|pBS#3LRbYZZ*-7U#Xhkpz+zyCAjHq4x%!?vaF-Wd-wPpwsADiO1T1Lm_m
+z#)Ap55*QB#;~osOO%r>J29C{B$=f-nW0UbR5CVZDN-hoX7WjV)W!DLl5#!#15CA<<
+zz>r{K&}7m?_<kY3+O?|-Aw*sZ5&|T{OP&CqIlKe>Pxwwp88?jT9tw{Q=ppqP#DWhE
+zwjKTl`mkM|mnJqZ?+GAGBImU0_-DWez+1q744*mHAJPwi9vQFzz=Puh&|K)>pf}sq
+za$XV60IFD1zu*|jFa@em?*_tKPI&`(1=t785~UX*RF4ZNj4`4assuxanb77N*s6*x
+zk;o-6?2qZy16~wWtjIZW?B@sL{ew@3gV}$bvH&JRgMcDbX2iz@fCB&y4ixYVc<9Q>
+zz?!y{!tvQ5!`_I+c!xUHJPQ%?0Zl2M>AIH9kMoZ!zw-0tpL$h)Fc(UIJMI7g0pnic
+z-8Cl^hPe=0gHyp}hrfZLmr{nR)0+0xTvEJza)Ie^&ffe#6fd-CO?TCl6PrlK5da_=
+z8-oR6sHkE^6B=Ty?PPVtpI0y3ED*3XYQyJ;m;d-h=n`-UoMpT-QZd}Q2Q~N1PZ`xB
+z%)s|S{{{XJY{q*+^Gx13<ox}PJOwZd44NUESE`CNW`+>Aaolf+vx&<klS)UMT2i~t
+zO}6g>b|iFC6Tbs~2Yvy50{>Nn3yJl~G3yTSM+Fd395d~MPk=387ua*y1{Q*`!*oUW
+z`il0Aj=WXy9#2jYECY5{5iSpCzO0FVIGg~7jvoORfWO3MtjkV1J>+!dkhuqOKN?Y2
+zW17Z^11FC`Q}D_4F{6z_ePC25vqae|l+h-{@w(svkWdjMq1I4mXdSRqVJC)81ZNKC
+zjxT|e8y?;8c(ZM$TOP7pugMwkCkX(s0kR?es-muhHHF**^&R?Lx3|%u7DONj%+Vvx
+z;W!lGxu90C7Oa3J_)=&EtPEQga@(?QPg&(PWWad<5|6~j1cr>%Axji<lJ${g+(ZZl
+zx;~8@Cj#ICx#I`~;NS@%<bVfM5-O02p|ZkDAQWA-CixL(zQi4H9>G5-#i;?*Nl}>q
+O0000<MNUMnLSTZb7>SDj
+
+diff --git a/launcher/resources/multimc/64x64/cat.png b/launcher/resources/multimc/64x64/cat.png
+deleted file mode 100644
+index 65681e6b866973ef5b3a80df0f19651b95c1e917..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 2963
+zcmV;E3vBd>P)<h;3K|Lk000e1NJLTq002M$002M;1^@s6s%dfF000YGNkl<ZcmdRy
+z1GGC=5XR?jHn#I@+qV7wwr$n6Z64J+YL9B$w%uoYI@#0IinG6*FV?qrW_Ip?NZ=S_
+z#o!?-xmrm#=aSZgNKupCiL%8PfSc6iv@;nmzfY^wUu!o;#Df@Nj78GTf=O$6rMF_8
+z8vZA1>UXIkt+Dq40M=x;=7NYxCe4#DB{J(y*OQxC4l+{s`lkK)>l*izu5a3xx3T#^
+zBoM3Wwim?OlU@b@v>U@;1(B2DIsi_Uq}E)sspY`(?y}WSmS;4KWW?rULU<a+hovl}
+zL}iT>CRe^=(K|+5@6SstyBx%fl$XWO&9uu9FX1T?GLcLo$4P|e{!LB!z1u;|FvhHO
+zGekm9)KR)(4~QHSsn62`P?6bmH~a$}h=52-tObDS!IctrfcBlq(6Blhm=ykig5K4$
+zI~7WoMFMC+;Jf~>N;kC}QiE8j%xd27`xRY(YBeH`;3R&GHOr&_u-aRN*Cugn;bSac
+z6(>ALJpit%+gS)=B`rGVq2HT4_L?q4fnjXfmimVSu>Zo}UhCPH@yqiJJ4%*s-q5^X
+z0%Buz-HtA;O8*Cwj#Me0ctZznJ);JB+aL2?mn6kwuI#~`=ai%Bcdu1vwVt-Fajyx)
+z#OBt+QDtfMp9?0uR7q;>8LR4cm_aO1(TeRUU-P=n5Qe@u02LXHTb9>sk%+-KPoa9G
+zyKL1!W^4gc6Xdmd2`8DZ&+ANvP>1^X%oVj;pQ_Dn!({68Gzy(hR$s3%-4Wueeo(ot
+zY2UH5>f^;JRTyE3L77zU6Z51W6T{QvLwVJ!C^z43$m>F9$eZ;x<QV5G^V5v6_E24Q
+z6>VWJ=qg<`SDIFfiQ#EN!vX-l(kN+BsIGeZikhu&H|BR^PJA(jo1;-KRru2U7o^-!
+zTy@jhhTS)JmacT3mXP-DXwq7d<2YZM|B;j)f~&s2gL3^dT6O1u0%Pons8MPWfRVtL
+z+6`{N2Vm91XXj=v85sR(MgPc8&_7BV`4NW42ViD)8hp$o=>c#9&d<5tJvKS=>URTQ
+zt@x(z3;3p=M7Mpz-@DBFnjaXj?;#Xe-?aBMn%N=E?2vYI=rBdP3Y|aoTqqPeEfu=E
+z+KQGU4JR?yk%U^6!8N<{w{8u(dD?M3+LYh(m(yE-bWAYK^Q-H3-d~^Fi5W5ZXw^GV
+zBH;sQUQi7L3kv(Iob7BX<-0*+cD1vC)b}Jqu+H(DTZ@)pdQ2Yb)y6;@cj?+7h5mt3
+z8eB~0CX}F&RvrL?rRHD^FF5M%o}qCQ+Kds%7z>JdO1IBtQiU1<&4#A^o9l8rgtnG<
+z6}%uQBPQ=+2sE2p4k;H`Zg@XEIv164br6g*;g)L71f6<Qg3#&h+fb9;iWZ$c7$J{p
+zg+{nvmDPMZcmWR{GBGu_{fEKtV2Cy~fks8?E@3=ScL`>l{Tc8A&cn)|KRDK3-Z%0C
+z%+1fj|Amog^_+iP5TlDH(6AJyW+y?d(2_K7LZDgGu<NwE#8S5gmt<IYKdl~WReGUW
+zGHNVB-{8*o@DeFT+2V!!QP#L|>Odm{8Ua-N_=)N9#RH>#Zf$At=i<x)$#ExrqA#l?
+zS%&u5jX$P8F4J-M8cU~GyutEd(-=!txe5&}4CCu~k<H!C`1IM5Tqq@z^WgA4f~Ici
+zuL?1rE_oUHvM8kh(3f{h3b)>C0meVNUSEFia&^wDV4E&?q@3t_hwS=HyCEl|DU)`_
+zi>N~N_^_L_2e*O!dtHKE?tXH$KBu1oUWZaLosBW@C>e6nOxf(#*o9{iLnN2(Q5hS6
+z_c{To+kfwRbJ^#P*QL177x~1}n-j(~Rm1ZLLjf6ps;V~t?{xz9-R`T^<{I0)2_8yF
+z*ake50uW;b={W@`JU#?UO6&JtfbHY$e#6_qHaT~Ii8cbn^HB)oQV4zCySn{;4}qg*
+zp^MAg<J2YI7G@}cl+$1-<+(Kk2|FVNVhq;+g1`{yT@)Z707~5^?9xW5B;F=|v>bC9
+z_JPDRkpjhKNIKR4pHkOTVvG<NL~pAA0bv4hNn0<OR-j!enRh`cWtay1{2fqiLI~iT
+ze*UYUwtHsdLvFN(Oq&^X6(9h5(*i;Z@r<^bvuMVQC;L*GlGC+$cN7<lc{ai>LlL$p
+z_#}`Q9c3PACUXu(r_AaDQ~?3d>lC0GbV3`&Y*b*<QRanmxKI1LQGpME5R&jP0g;^d
+zW8e$W$3{n{EIRVEFlvvO#yP~-Er110?3j)+`$>R#gk$4R(r$C7t{OfF0!d&KLj>yv
+z@IRn0z@G#-4rn3LWJNPtFnhEY^hyOxAk?&Vp|p`OGb{~fz&E??dNUqPKi~vFVJLu-
+z(~;2s0pA#ZY52tWScG|?o9r1iOJaQG0vcMNuE4D+b5V|gPek};v$|?Ws?PZkNQeM7
+zQ4trP8ve)l8=)_O&jhF71%$CEP2?a(5J)doz#-^>q8+({(n2`sT^de>KG~<;S=pz1
+zAyxoXeU6$5?+b+h((rd(^3vo_z@Gwr>dbHqnwv7|$aSQI83Z9-s(_5>2m(c+Cg3sn
+z09Y6ffs?%1cH^owK(U#PXY}Xzybpo`LfCL{bo%Mp>DT|=H0?>D92zeLGhh<X2x65X
+z6e96u3lLM_hFUBUWQax;PzxFeqi(+s6Pgu3DVfXr=Zu>Pi`gMTfwxU0Aiy?~n6@)+
+zU;Ulm|LHg5ziw}xeDwK$|8G<^0ve+R93g}TdPjnZs+XUDEoS8%vT?7na3{1k-h+p%
+zk}pQF=>WQ%=r52^S0m02KOLqahRE9>BF|`ZrOI~U{OS%jriYB{F<nkRzq(y+UjD6Z
+zM-v<Ggp*N*k`r<wIj|=XU+!cm&{45>qROTup$+Ih_)>5WXbpC8ItXn^q|XWtT~6G+
+zx;b3gIhvo+-yCI|HpBUSzc+@Ga>-9Q*B8=|53d&nVyvh_JzV`6S7TLm6VIx;pR{}2
+zJpT*ltGj@Sgzk{pA2xUH+>OMW0bPKug*S%1={j(UWG5<~hE5pq6k=dDGif1o1e^h%
+z48li(C9n{h?C4G}SpRpS)WGA#I2+G<ZwwD2DqsW{yI=qt5CCA15JC^rfL+L?BXy~F
+z$MyD#Zo6GY!rI_IS999m0Cx<xft$czg#KFaZ4oX7>-${oGgSu6zo9AODTF2Sae}Gf
+zhVa7Zxc3Y=1}}te0CT}OQx?~3zrAJui9!F`WbCbmQbOnrLWoD$9xN0}DcD0&JctJk
+zKtuKSCDT6ybY)lz?i;R+FNE$G-x1sf?lOEXt_thjZBhaXPeD8#Es4#T#i)=cf(fv2
+zFR%m-fVuI3U<PUhqeT9AL;9aR-DyW&8dtm?7Nkg6MdEc$JRed2sUiN|umSh78iXt0
+z61V_eYIxsQrd}6TyK^?FLmBWZ6(9%;#&t_wn>d0pG0cRf;HhCM=u;DLFGC3;G{)mh
+zIqY2)%Cz8d@2Ix{R|W|RC<ho8Y<Q>$yFPoh7U902Pwk#8U~Pb2uYq1xLideVFudQ(
+zwj=E?*mQ}Kfx^>4FFF-IB2;5$F;g`r_tJt#LVYp@MnF4=M&Q<{5mZ1F2ox9+02u@z
+zFi*i4LjkfN0XxH9eS){3-XV98`;41{w~??H?9HmX#lFi>7=+g-;K?M^pabgI7ZGae
+zDp4Z1c5kLsB2?fS=vAF@47d`+^0)+4c!IzN@fagy0f2!b$hkKV5;zO*MM#Cxfl@@B
+zp{uD9ba~6JT(im>D24)<7a-uJzh?#-GXW}gIDpA?Y6%LM4)+-~M%rQur~*1b6peX;
+z2O;o;4%mSM!hpdoq7b~JbHJ{U*BBu~ptn@mkrnqag~yne;2+^7b-b(vf^+}?002ov
+JPDHLkV1lXIg5m%G
+
+diff --git a/launcher/resources/multimc/multimc.qrc b/launcher/resources/multimc/multimc.qrc
+index 2a4736a..6ce8885 100644
+--- a/launcher/resources/multimc/multimc.qrc
++++ b/launcher/resources/multimc/multimc.qrc
+@@ -69,13 +69,6 @@
+         <file>scalable/custom-commands.svg</file>
+         <file>scalable/datapacks.svg</file>
+ 
+-        <!-- The cat button. Freeware, http://findicons.com/icon/73096/black_cat -->
+-        <file>16x16/cat.png</file>
+-        <file>22x22/cat.png</file>
+-        <file>24x24/cat.png</file>
+-        <file>32x32/cat.png</file>
+-        <file>48x48/cat.png</file>
+-        <file>64x64/cat.png</file>
+ 
+         <!-- Show mods folder. LGPL3 http://openiconlibrary.sourceforge.net/gallery2/?./Icons/places/oxygen-style/folder-favorites.png -->
+         <file>scalable/centralmods.svg</file>
+diff --git a/launcher/resources/themes/aurora.qss b/launcher/resources/themes/aurora.qss
+new file mode 100644
+index 0000000..62ac90a
+--- /dev/null
++++ b/launcher/resources/themes/aurora.qss
+@@ -0,0 +1,737 @@
++/* ==========================================================================
++   Aurora - the launcher's built-in theme.
++   Palette is defined in AuroraTheme::colorScheme; this file styles the chrome.
++   Glyphs live next to this file in the Qt resource bundle (: /themes/...).
++   ========================================================================== */
++
++/* ---------- Typography ---------- */
++QWidget {
++    font-family: "Segoe UI Variable Text", "Segoe UI", "Inter", "Noto Sans", sans-serif;
++    font-size: 10pt;
++    color: #E7ECF5;
++}
++
++QWidget:disabled {
++    color: rgba(231, 236, 245, 105);
++}
++
++QMainWindow,
++QDialog {
++    background-color: #0E1117;
++}
++
++QToolTip {
++    background-color: #1B212C;
++    color: #E7ECF5;
++    border: 1px solid rgba(255, 255, 255, 41);
++    padding: 6px 9px;
++    font-size: 9pt;
++}
++
++/* ---------- Menu bar ---------- */
++QMenuBar {
++    background-color: transparent;
++    border: none;
++    padding: 3px 6px;
++    spacing: 2px;
++}
++
++QMenuBar::item {
++    background: transparent;
++    padding: 6px 10px;
++    border-radius: 6px;
++}
++
++QMenuBar::item:selected {
++    background-color: rgba(255, 255, 255, 18);
++}
++
++QMenuBar::item:pressed {
++    background-color: rgba(255, 255, 255, 30);
++}
++
++/* ---------- Menus (popups stay square: no corners outside the window) ----- */
++QMenu {
++    background-color: #151A23;
++    border: 1px solid rgba(255, 255, 255, 41);
++    padding: 6px;
++}
++
++QMenu::item {
++    background-color: transparent;
++    padding: 7px 26px 7px 26px;
++    margin: 1px 2px;
++    border-radius: 6px;
++}
++
++QMenu::item:selected {
++    background-color: #3A5BE0;
++    color: #FFFFFF;
++}
++
++QMenu::item:disabled {
++    color: rgba(231, 236, 245, 105);
++}
++
++QMenu::separator {
++    height: 1px;
++    background-color: rgba(255, 255, 255, 26);
++    margin: 6px 10px;
++}
++
++QMenu::icon {
++    left: 8px;
++}
++
++/* ---------- Tool bars ---------- */
++QToolBar {
++    background-color: transparent;
++    border: none;
++    spacing: 3px;
++    padding: 6px 8px;
++}
++
++QToolBar::separator {
++    background-color: rgba(255, 255, 255, 26);
++    width: 1px;
++    margin: 7px 7px;
++}
++
++QToolButton {
++    background-color: transparent;
++    border: 1px solid transparent;
++    border-radius: 8px;
++    padding: 6px 10px;
++    color: #E7ECF5;
++}
++
++QToolButton:hover {
++    background-color: rgba(255, 255, 255, 18);
++    border-color: rgba(255, 255, 255, 26);
++}
++
++QToolButton:pressed {
++    background-color: rgba(255, 255, 255, 30);
++}
++
++QToolButton:checked,
++QToolButton:on {
++    background-color: rgba(76, 125, 255, 56);
++    border-color: rgba(76, 125, 255, 153);
++}
++
++QToolButton[popupMode="1"],
++QToolButton[popupMode="2"] {
++    padding-right: 22px;
++}
++
++QToolButton::menu-indicator {
++    image: url(:/themes/chevron-down.png);
++    subcontrol-origin: padding;
++    subcontrol-position: center right;
++    right: 6px;
++    width: 10px;
++    height: 10px;
++}
++
++/* ---------- Buttons ---------- */
++QPushButton {
++    background-color: #1C2431;
++    color: #E7ECF5;
++    border: 1px solid rgba(255, 255, 255, 26);
++    border-radius: 8px;
++    padding: 7px 16px;
++    min-height: 18px;
++}
++
++QPushButton:hover {
++    background-color: #232D3D;
++    border-color: rgba(255, 255, 255, 41);
++}
++
++QPushButton:pressed {
++    background-color: #171E29;
++}
++
++QPushButton:default {
++    border-color: #4C7DFF;
++}
++
++QPushButton:checked,
++QPushButton:open {
++    background-color: rgba(76, 125, 255, 56);
++    border-color: rgba(76, 125, 255, 153);
++}
++
++QPushButton:disabled {
++    background-color: #171C26;
++    border-color: rgba(255, 255, 255, 13);
++    color: rgba(231, 236, 245, 96);
++}
++
++QPushButton:flat {
++    background-color: transparent;
++    border-color: transparent;
++}
++
++QPushButton::menu-indicator {
++    image: url(:/themes/chevron-down.png);
++    subcontrol-origin: padding;
++    subcontrol-position: center right;
++    right: 6px;
++    width: 10px;
++    height: 10px;
++}
++
++QDialogButtonBox QPushButton {
++    min-width: 88px;
++}
++
++/* ---------- Text inputs ---------- */
++QLineEdit,
++QPlainTextEdit,
++QTextEdit,
++QTextBrowser,
++QSpinBox,
++QDoubleSpinBox,
++QDateEdit,
++QTimeEdit,
++QDateTimeEdit,
++QComboBox {
++    background-color: #151A23;
++    color: #E7ECF5;
++    border: 1px solid rgba(255, 255, 255, 26);
++    border-radius: 8px;
++    padding: 6px 10px;
++    min-height: 18px;
++    selection-background-color: #3A5BE0;
++    selection-color: #FFFFFF;
++}
++
++QLineEdit:hover,
++QPlainTextEdit:hover,
++QTextEdit:hover,
++QSpinBox:hover,
++QDoubleSpinBox:hover,
++QComboBox:hover {
++    border-color: rgba(255, 255, 255, 41);
++}
++
++QLineEdit:focus,
++QPlainTextEdit:focus,
++QTextEdit:focus,
++QSpinBox:focus,
++QDoubleSpinBox:focus,
++QDateEdit:focus,
++QTimeEdit:focus,
++QDateTimeEdit:focus,
++QComboBox:focus,
++QComboBox:on {
++    border-color: #4C7DFF;
++}
++
++QLineEdit:disabled,
++QPlainTextEdit:disabled,
++QTextEdit:disabled,
++QSpinBox:disabled,
++QDoubleSpinBox:disabled,
++QComboBox:disabled {
++    background-color: #12161E;
++    border-color: rgba(255, 255, 255, 13);
++    color: rgba(231, 236, 245, 96);
++}
++
++QLineEdit:read-only {
++    background-color: #12161E;
++}
++
++QComboBox {
++    padding-right: 28px;
++}
++
++QComboBox::drop-down {
++    subcontrol-origin: border;
++    subcontrol-position: center right;
++    width: 28px;
++    border: none;
++    background: transparent;
++}
++
++QComboBox::drop-down:hover {
++    background-color: rgba(255, 255, 255, 18);
++    border-top-right-radius: 7px;
++    border-bottom-right-radius: 7px;
++}
++
++QComboBox::down-arrow {
++    image: url(:/themes/chevron-down.png);
++    width: 12px;
++    height: 12px;
++}
++
++QComboBox QAbstractItemView {
++    background-color: #151A23;
++    border: 1px solid rgba(255, 255, 255, 41);
++    padding: 4px;
++    outline: 0;
++    selection-background-color: #3A5BE0;
++    selection-color: #FFFFFF;
++}
++
++QComboBox QAbstractItemView::item {
++    padding: 6px 8px;
++    border-radius: 6px;
++    min-height: 18px;
++}
++
++/* ---------- Item views ---------- */
++QTreeView,
++QTableView,
++QListView,
++QListWidget,
++QTreeWidget,
++QTableWidget {
++    background-color: #151A23;
++    alternate-background-color: #1B212C;
++    border: 1px solid rgba(255, 255, 255, 26);
++    outline: 0;
++    selection-background-color: #3A5BE0;
++    selection-color: #FFFFFF;
++}
++
++QListWidget {
++    padding: 6px;
++}
++
++QTreeView::item,
++QListView::item,
++QListWidget::item,
++QTreeWidget::item {
++    padding: 5px 6px;
++    border-radius: 6px;
++}
++
++QTreeView::item:hover,
++QListView::item:hover,
++QListWidget::item:hover,
++QTreeWidget::item:hover {
++    background-color: rgba(255, 255, 255, 13);
++}
++
++QTreeView::item:selected,
++QListView::item:selected,
++QListWidget::item:selected,
++QTreeWidget::item:selected {
++    background-color: #3A5BE0;
++    color: #FFFFFF;
++}
++
++QHeaderView::section {
++    background-color: #1B212C;
++    color: #E7ECF5;
++    border: none;
++    border-right: 1px solid rgba(255, 255, 255, 13);
++    border-bottom: 1px solid rgba(255, 255, 255, 26);
++    padding: 7px 9px;
++    font-weight: 600;
++}
++
++QHeaderView::section:hover {
++    background-color: #222A38;
++}
++
++QAbstractScrollArea::corner {
++    background-color: transparent;
++}
++
++/* ---------- Group boxes ---------- */
++QGroupBox {
++    background-color: transparent;
++    border: 1px solid rgba(255, 255, 255, 26);
++    border-radius: 10px;
++    margin-top: 15px;
++    padding: 12px 12px 10px 12px;
++}
++
++QGroupBox::title {
++    subcontrol-origin: margin;
++    subcontrol-position: top left;
++    left: 12px;
++    padding: 0 6px;
++    color: rgba(231, 236, 245, 210);
++    font-weight: 600;
++}
++
++/* ---------- Tabs ---------- */
++QTabWidget::pane {
++    border: 1px solid rgba(255, 255, 255, 26);
++    background-color: transparent;
++}
++
++QTabBar::tab {
++    background-color: transparent;
++    color: rgba(231, 236, 245, 178);
++    border: 1px solid transparent;
++    border-radius: 8px;
++    padding: 8px 15px;
++    margin-right: 4px;
++    margin-bottom: 2px;
++}
++
++QTabBar::tab:hover:!selected {
++    background-color: rgba(255, 255, 255, 18);
++    color: #E7ECF5;
++}
++
++QTabBar::tab:selected {
++    background-color: rgba(76, 125, 255, 56);
++    border-color: rgba(76, 125, 255, 153);
++    color: #FFFFFF;
++}
++
++QTabBar::tab:disabled {
++    color: rgba(231, 236, 245, 96);
++}
++
++/* ---------- Scroll bars ---------- */
++QScrollBar:vertical {
++    background: transparent;
++    width: 12px;
++    margin: 2px;
++}
++
++QScrollBar::handle:vertical {
++    background-color: rgba(231, 236, 245, 64);
++    border-radius: 4px;
++    min-height: 32px;
++}
++
++QScrollBar::handle:vertical:hover {
++    background-color: rgba(231, 236, 245, 102);
++}
++
++QScrollBar::handle:vertical:pressed {
++    background-color: #4C7DFF;
++}
++
++QScrollBar:horizontal {
++    background: transparent;
++    height: 12px;
++    margin: 2px;
++}
++
++QScrollBar::handle:horizontal {
++    background-color: rgba(231, 236, 245, 64);
++    border-radius: 4px;
++    min-width: 32px;
++}
++
++QScrollBar::handle:horizontal:hover {
++    background-color: rgba(231, 236, 245, 102);
++}
++
++QScrollBar::handle:horizontal:pressed {
++    background-color: #4C7DFF;
++}
++
++QScrollBar::add-line,
++QScrollBar::sub-line {
++    background: none;
++    border: none;
++    width: 0;
++    height: 0;
++}
++
++QScrollBar::add-page,
++QScrollBar::sub-page {
++    background: none;
++}
++
++/* ---------- Status bar ---------- */
++QStatusBar {
++    background-color: #0B0E13;
++    border-top: 1px solid rgba(255, 255, 255, 18);
++    color: rgba(231, 236, 245, 190);
++}
++
++QStatusBar::item {
++    border: none;
++}
++
++QStatusBar QLabel {
++    padding: 3px 8px;
++}
++
++/* ---------- Splitters ---------- */
++QSplitter::handle {
++    background-color: transparent;
++}
++
++QSplitter::handle:hover {
++    background-color: rgba(76, 125, 255, 90);
++}
++
++QSplitter::handle:horizontal {
++    width: 6px;
++}
++
++QSplitter::handle:vertical {
++    height: 6px;
++}
++
++/* ---------- Progress bars ---------- */
++QProgressBar {
++    background-color: #151A23;
++    border: 1px solid rgba(255, 255, 255, 26);
++    border-radius: 7px;
++    height: 16px;
++    text-align: center;
++    color: #E7ECF5;
++}
++
++QProgressBar::chunk {
++    background-color: #4C7DFF;
++    border-radius: 6px;
++}
++
++/* ---------- Sliders ---------- */
++QSlider::groove:horizontal {
++    height: 5px;
++    background-color: rgba(255, 255, 255, 26);
++    border-radius: 2px;
++}
++
++QSlider::sub-page:horizontal {
++    background-color: #4C7DFF;
++    border-radius: 2px;
++}
++
++QSlider::handle:horizontal {
++    background-color: #E7ECF5;
++    width: 15px;
++    margin: -6px 0;
++    border-radius: 7px;
++}
++
++QSlider::handle:horizontal:hover {
++    background-color: #FFFFFF;
++}
++
++QSlider::groove:vertical {
++    width: 5px;
++    background-color: rgba(255, 255, 255, 26);
++    border-radius: 2px;
++}
++
++QSlider::add-page:vertical {
++    background-color: #4C7DFF;
++    border-radius: 2px;
++}
++
++QSlider::handle:vertical {
++    background-color: #E7ECF5;
++    height: 15px;
++    margin: 0 -6px;
++    border-radius: 7px;
++}
++
++/* ---------- Misc ---------- */
++QScrollArea {
++    border: none;
++    background-color: transparent;
++}
++
++QLabel {
++    background-color: transparent;
++}
++
++/* ---------- Check boxes and radio buttons ---------- */
++QCheckBox,
++QRadioButton {
++    spacing: 8px;
++    background-color: transparent;
++}
++
++QCheckBox::indicator,
++QGroupBox::indicator {
++    width: 16px;
++    height: 16px;
++    border: 1px solid rgba(255, 255, 255, 82);
++    border-radius: 5px;
++    background-color: #151A23;
++}
++
++QRadioButton::indicator {
++    width: 16px;
++    height: 16px;
++    border: 1px solid rgba(255, 255, 255, 82);
++    border-radius: 9px;
++    background-color: #151A23;
++}
++
++QCheckBox::indicator:hover,
++QRadioButton::indicator:hover {
++    border-color: #8FB0FF;
++}
++
++QCheckBox::indicator:checked,
++QGroupBox::indicator:checked {
++    background-color: #3A5BE0;
++    border-color: #3A5BE0;
++    image: url(:/themes/check.png);
++}
++
++QRadioButton::indicator:checked {
++    background-color: #3A5BE0;
++    border-color: #3A5BE0;
++}
++
++QCheckBox::indicator:disabled,
++QRadioButton::indicator:disabled,
++QGroupBox::indicator:disabled {
++    border-color: rgba(255, 255, 255, 31);
++    background-color: #12161E;
++}
++
++QCheckBox::indicator:checked:disabled,
++QGroupBox::indicator:checked:disabled {
++    background-color: #2E3A57;
++    border-color: #2E3A57;
++    image: url(:/themes/check.png);
++}
++
++QRadioButton::indicator:checked:disabled {
++    background-color: #2E3A57;
++    border-color: #2E3A57;
++}
++
++/* ---------- Spin boxes ---------- */
++QSpinBox,
++QDoubleSpinBox {
++    padding-right: 26px;
++    min-height: 20px;
++}
++
++QSpinBox::up-button,
++QDoubleSpinBox::up-button {
++    subcontrol-origin: border;
++    subcontrol-position: top right;
++    width: 24px;
++    border: none;
++    border-left: 1px solid rgba(255, 255, 255, 26);
++    border-top-right-radius: 7px;
++    background: transparent;
++}
++
++QSpinBox::down-button,
++QDoubleSpinBox::down-button {
++    subcontrol-origin: border;
++    subcontrol-position: bottom right;
++    width: 24px;
++    border: none;
++    border-left: 1px solid rgba(255, 255, 255, 26);
++    border-bottom-right-radius: 7px;
++    background: transparent;
++}
++
++QSpinBox::up-button:hover,
++QDoubleSpinBox::up-button:hover,
++QSpinBox::down-button:hover,
++QDoubleSpinBox::down-button:hover {
++    background-color: rgba(255, 255, 255, 18);
++}
++
++QSpinBox::up-arrow,
++QDoubleSpinBox::up-arrow {
++    image: url(:/themes/chevron-up.png);
++    width: 9px;
++    height: 9px;
++}
++
++QSpinBox::down-arrow,
++QDoubleSpinBox::down-arrow {
++    image: url(:/themes/chevron-down.png);
++    width: 9px;
++    height: 9px;
++}
++
++QSplitter::handle:disabled {
++    background-color: transparent;
++}
++
++/* ---------- Home surface ---------- */
++#homeSurface,
++#homeSurface > QWidget,
++#homeCards,
++#homeHeader {
++    background-color: transparent;
++}
++
++#homeTitle {
++    font-size: 17pt;
++    font-weight: 600;
++    color: #F2F6FF;
++}
++
++#homeSubtitle {
++    font-size: 9pt;
++    color: rgba(231, 236, 245, 150);
++}
++
++#homeSearch {
++    background-color: rgba(21, 26, 35, 190);
++    border: 1px solid rgba(255, 255, 255, 34);
++    border-radius: 17px;
++    padding: 6px 14px;
++    min-height: 22px;
++}
++
++#homeSearch:focus {
++    border-color: #4C7DFF;
++    background-color: rgba(21, 26, 35, 230);
++}
++
++#homeAccount {
++    background-color: rgba(255, 255, 255, 12);
++    border: 1px solid rgba(255, 255, 255, 26);
++    border-radius: 17px;
++    padding: 6px 14px;
++    min-height: 22px;
++}
++
++#homeAccount:hover {
++    background-color: rgba(255, 255, 255, 22);
++    border-color: rgba(255, 255, 255, 44);
++}
++
++#homeAdd {
++    background-color: #3A5BE0;
++    border: 1px solid #4C7DFF;
++    border-radius: 17px;
++    padding: 7px 18px;
++    min-height: 22px;
++    color: #FFFFFF;
++    font-weight: 600;
++}
++
++#homeAdd:hover {
++    background-color: #4568EE;
++}
++
++#homeAdd:pressed {
++    background-color: #3352CC;
++}
++
++#homeSettings {
++    background-color: transparent;
++    border: 1px solid transparent;
++    border-radius: 17px;
++    padding: 7px;
++    min-width: 22px;
++    min-height: 22px;
++}
++
++#homeSettings:hover {
++    background-color: rgba(255, 255, 255, 18);
++    border-color: rgba(255, 255, 255, 26);
++}
+diff --git a/launcher/resources/themes/check.png b/launcher/resources/themes/check.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..0cdb77bfcb87f581f633d34d8d845a0ae7334073
+GIT binary patch
+literal 631
+zcmV--0*L*IP)<h;3K|Lk000e1NJLTq002M$002M;1^@s6s%dfF00009a7bBm000ie
+z000ie0hKEb8vp<TDM>^@RCt{2+A&C!Q2+<<r-?{WAQTjyLM=7aQj4{;)z(;BV>H%S
+zYmGHVTTN+OZAMVg(9~2*OD#eQhFXCTBK{igoYK4Z-M#M~pS&Nq-M#z&|K6Q`+=WmS
+zMNt$*Q4~c{6h+fu3UgS&GUhRpJJ(R)0#^NR6;rwM)e2|ubC>cvUgXYL8_Zy_OL<s{
+zIcv1;u&Lo#2;prAVY<gnw_?s~)BrdVLRbhPoQ}BphnnLI7bft&$J2htpMCY00AqL^
+zS^h6B=gyoAM)5qd{1&d|&YTQJ@HnzO+{~RhDcrA6{!Z?^N#S;d@(*(7O$s-#9a;Vf
+zMsjCP23N5eS$-ak`d_9iT*5|V`2~y*J77!u(sQ}<Gly29v(I5YviwIJO!2r?0=BTW
+zOPF=c4tVyd&Y&?qV=`5*Dk0~(g!<j@2snZ7k>$VPc<OGkL3{m%Dvy9ke2FZ-gp+mk
+ziwPU^6pbDMhqPbIG1hRl?vA|zcY6s`8Uf>Y6M5bSE)J__x6m!|@6vmYfCG3LdCn%T
+z47=-|Fxx5D*9h7dH%}w)zm4m;y6$O^5%4hbesC*i&#w9z0e35uzn8mXPZdX~;*q9Y
+z+|)3_v&NL)k#K}p7|Y$KF9}9?hl$)h1~R}1pKv&L{v`Ss;VX{j&Ye_+5f;(w<E>_j
+z7-0o5A8$2RXM|t7lwZa9-1&wA)7lq4OZcIEMY+GfxKI>DQ4~c{6h%=qz(49h3zLnG
+RXZ8R9002ovPDHLkV1f;TAqD^d
+
+literal 0
+HcmV?d00001
+
+diff --git a/launcher/resources/themes/chevron-down.png b/launcher/resources/themes/chevron-down.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..7ef3febf8f119d68eb7f1dbef2cfdcae5c2b4824
+GIT binary patch
+literal 340
+zcmeAS@N?(olHy`uVBq!ia0vp^4j|0I1|(Ny7TyC=oCO|{#S9F5M?jcysy3fA0|O(Q
+zr;B4q#hkZSV)G6eh`2m_vp7*cXGh1>iOa<z4!-PO-*U_3Z2#Lw1$LU}%hQ(Zc&*|&
+z35;g3d^x}=ajBf?*Yq9p`|3Yk7PSc5QSY;T-*1L{UiaT$y0w4jbQ#5|`~C0K>zDpE
+zJYpcY;0A~BDQ2FX@B3JPW;eW1KBE(#+pscT;Wr2ODd(l}3)24xp0Yc1=u>!>O_O%h
+zTB(J{dVRgvYJPoEZ8i(u=knm$sdkxzvvuXSiDc}ni3m<He|q?klebO%&wzxMvQzCn
+z%3H$iQY04M{gil^<Lz{QZMPf#KQ|<_{GG~g>~<sn=LEMMy;JtT-B-iFcR+H-lJ`6^
+h|E#A&d=qz2+~bX~y&u=ZQeZGKc)I$ztaD0e0syx&lH33Q
+
+literal 0
+HcmV?d00001
+
+diff --git a/launcher/resources/themes/chevron-up.png b/launcher/resources/themes/chevron-up.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..8f21330dac9a1bf22b510641b0d250658831204b
+GIT binary patch
+literal 344
+zcmeAS@N?(olHy`uVBq!ia0vp^4j|0I1|(Ny7TyC=oCO|{#S9F5M?jcysy3fA0|O(M
+zr;B4q#hkY{9P<ttNVp`vbG%jjL?Omd)ckZ8o8O0Bg`r}Mj~?CcT>RbhO_PnWMqGh~
+z$0QX`APO>gAZ)>${A*5Q|JLGA#xDn^RxaQAxz+1wKL4rzudbhyOiHZ0Wc*u7aq*vj
+zZa>_A{_XkT_Vb&&M!>$if?U(`^IIA|z3rJ0`ET01^Z(A>vQ6I`yyT~#mq<og%cO&|
+zr4^M5jFny3?*8F0Wy&jKS-`wZ>Y$PPjE3Zs>-wE)ul@-&a+mNbsS(Xs6Z-GnnWf4-
+zOV8DaJ-f=F`2O)B!BspT-iUJS?Gft<cq;m$;r-0R%TIhNfByYU{2}qIm?ljZcAh_f
+m*V=|y*Dyc#hWIAyI)9vnaOp+CvJ1eVV(@hJb6Mw<&;$S(|C46`
+
+literal 0
+HcmV?d00001
+
+diff --git a/launcher/resources/themes/themes.qrc b/launcher/resources/themes/themes.qrc
+new file mode 100644
+index 0000000..54728cb
+--- /dev/null
++++ b/launcher/resources/themes/themes.qrc
+@@ -0,0 +1,8 @@
++<RCC>
++    <qresource prefix="/themes">
++        <file>aurora.qss</file>
++        <file>check.png</file>
++        <file>chevron-up.png</file>
++        <file>chevron-down.png</file>
++    </qresource>
++</RCC>
+diff --git a/launcher/ui/MainWindow.cpp b/launcher/ui/MainWindow.cpp
+index 784250e..766e4ee 100644
+--- a/launcher/ui/MainWindow.cpp
++++ b/launcher/ui/MainWindow.cpp
+@@ -43,6 +43,8 @@
+ #include "FileSystem.h"
+ 
+ #include "MainWindow.h"
++
++#include "ui/widgets/HomeSurface.h"
+ #include "ui_MainWindow.h"
+ 
+ #include <QDir>
+@@ -125,7 +127,6 @@
+ #include "modplatform/flame/FlameAPI.h"
+ #include "modplatform/flame/FlameModIndex.h"
+ 
+-#include "KonamiCode.h"
+ 
+ #include "InstanceCopyTask.h"
+ #include "InstanceDirUpdate.h"
+@@ -268,12 +269,6 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
+         connect(q, &QShortcut::activated, APPLICATION, &Application::quit);
+     }
+ 
+-    // Konami Code
+-    {
+-        secretEventFilter = new KonamiCode(this);
+-        connect(secretEventFilter, &KonamiCode::triggered, this, &MainWindow::konamiTriggered);
+-    }
+-
+     // Add the news label to the news toolbar.
+     {
+         m_newsChecker.reset(new NewsChecker(APPLICATION->network(), BuildConfig.NEWS_RSS_URL));
+@@ -331,17 +326,35 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
+         view->setSourceOfGroupCollapseStatus(
+             [](const QString& groupName) -> bool { return APPLICATION->instances()->isGroupCollapsed(groupName); });
+         connect(view, &InstanceView::groupStateChanged, APPLICATION->instances(), &InstanceList::on_GroupStateChanged);
+-        ui->horizontalLayout->addWidget(view);
++        ui->horizontalLayout->setContentsMargins(0, 0, 0, 0);
++        ui->horizontalLayout->setSpacing(0);
++
++        m_home = new HomeSurface(ui->centralWidget);
++        ui->horizontalLayout->addWidget(m_home);
++        m_home->setContent(view);
++
++        connect(m_home, &HomeSurface::searchChanged, this, [this](const QString& text) {
++            if (proxymodel)
++                proxymodel->setInstanceFilter(text);
++        });
++        connect(m_home, &HomeSurface::addInstanceRequested, this, &MainWindow::on_actionAddInstance_triggered);
++        connect(m_home, &HomeSurface::accountsRequested, this, &MainWindow::on_actionManageAccounts_triggered);
++        connect(m_home, &HomeSurface::settingsRequested, this, &MainWindow::on_actionSettings_triggered);
++
++        m_home->setBackgroundAnimated(APPLICATION->settings()->get("AnimatedBackground").toBool());
+     }
+-    // The cat background
++    // Animated home background toggle
+     {
+-        // set the cat action priority here so you can still see the action in qt designer
+-        ui->actionCAT->setPriority(QAction::LowPriority);
+-        bool cat_enable = APPLICATION->settings()->get("TheCat").toBool();
+-        ui->actionCAT->setChecked(cat_enable);
+-        connect(ui->actionCAT, &QAction::toggled, this, &MainWindow::onCatToggled);
+-        connect(APPLICATION, &Application::currentCatChanged, this, &MainWindow::onCatChanged);
+-        setCatBackground(cat_enable);
++        auto* animatedBackgroundAction = new QAction(tr("Animated Background"), this);
++        m_animatedBackgroundAction = animatedBackgroundAction;
++        animatedBackgroundAction->setCheckable(true);
++        animatedBackgroundAction->setChecked(APPLICATION->settings()->get("AnimatedBackground").toBool());
++        connect(animatedBackgroundAction, &QAction::toggled, this, [this](bool enabled) {
++            APPLICATION->settings()->set("AnimatedBackground", enabled);
++            if (m_home)
++                m_home->setBackgroundAnimated(enabled);
++        });
++        ui->viewMenu->insertAction(ui->actionToggleStatusBar, animatedBackgroundAction);
+     }
+ 
+     // Togglable status bar
+@@ -475,6 +488,12 @@ void MainWindow::retranslateUi()
+         if (action->toolTip().contains("%1"))
+             action->setToolTip(action->toolTip().arg(BuildConfig.LAUNCHER_DISPLAYNAME));
+     }
++
++    if (m_animatedBackgroundAction)
++        m_animatedBackgroundAction->setText(tr("Animated Background"));
++
++    if (m_home)
++        m_home->retranslateUi();
+ }
+ 
+ MainWindow::~MainWindow() {}
+@@ -502,28 +521,6 @@ void MainWindow::lockToolbars(bool state)
+     APPLICATION->settings()->set("ToolbarsLocked", state);
+ }
+ 
+-void MainWindow::konamiTriggered()
+-{
+-    QString gradient =
+-        " stop:0 rgba(125, 0, 0, 255), stop:0.166 rgba(125, 125, 0, 255), stop:0.333 rgba(0, 125, 0, 255), stop:0.5 rgba(0, 125, 125, "
+-        "255), stop:0.666 rgba(0, 0, 125, 255), stop:0.833 rgba(125, 0, 125, 255), stop:1 rgba(125, 0, 0, 255));";
+-    QString stylesheet = "background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0," + gradient;
+-    if (ui->mainToolBar->styleSheet() == stylesheet) {
+-        ui->mainToolBar->setStyleSheet("");
+-        ui->instanceToolBar->setStyleSheet("");
+-        ui->centralWidget->setStyleSheet("");
+-        ui->newsToolBar->setStyleSheet("");
+-        ui->statusBar->setStyleSheet("");
+-        qDebug() << "Super Secret Mode DEACTIVATED!";
+-    } else {
+-        ui->mainToolBar->setStyleSheet(stylesheet);
+-        ui->instanceToolBar->setStyleSheet("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1," + gradient);
+-        ui->centralWidget->setStyleSheet("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1," + gradient);
+-        ui->newsToolBar->setStyleSheet(stylesheet);
+-        ui->statusBar->setStyleSheet(stylesheet);
+-        qDebug() << "Super Secret Mode ACTIVATED!";
+-    }
+-}
+ 
+ void MainWindow::showInstanceContextMenu(const QPoint& pos)
+ {
+@@ -760,19 +757,23 @@ void MainWindow::defaultAccountChanged()
+         } else {
+             ui->actionAccountsButton->setIcon(face);
+         }
++        if (m_home)
++            m_home->setAccount(account->profileName(), QIcon(face));
+         return;
+     }
+ 
+     // Set the icon to the "no account" icon.
+     ui->actionAccountsButton->setIcon(QIcon::fromTheme("noaccount"));
+     ui->actionAccountsButton->setText(tr("Accounts"));
++
++    if (m_home)
++        m_home->setAccount(QString(), QIcon::fromTheme("noaccount"));
+ }
+ 
+ bool MainWindow::eventFilter(QObject* obj, QEvent* ev)
+ {
+     if (obj == view) {
+         if (ev->type() == QEvent::KeyPress) {
+-            secretEventFilter->input(ev);
+             QKeyEvent* keyEvent = static_cast<QKeyEvent*>(ev);
+             switch (keyEvent->key()) {
+                     /*
+@@ -836,17 +837,7 @@ QString intListToString(const QList<int>& list)
+     return slist.join(',');
+ }
+ 
+-void MainWindow::onCatToggled(bool state)
+-{
+-    setCatBackground(state);
+-    APPLICATION->settings()->set("TheCat", state);
+-}
+ 
+-void MainWindow::setCatBackground(bool enabled)
+-{
+-    view->setPaintCat(enabled);
+-    view->viewport()->repaint();
+-}
+ 
+ void MainWindow::runModalTask(Task* task)
+ {
+@@ -1334,10 +1325,6 @@ void MainWindow::on_actionViewWidgetThemeFolder_triggered()
+     DesktopServices::openPath(APPLICATION->themeManager()->getApplicationThemesFolder().path(), true);
+ }
+ 
+-void MainWindow::on_actionViewCatPackFolder_triggered()
+-{
+-    DesktopServices::openPath(APPLICATION->themeManager()->getCatPacksFolder().path(), true);
+-}
+ 
+ void MainWindow::on_actionViewIconsFolder_triggered()
+ {
+@@ -1471,10 +1458,6 @@ void MainWindow::newsButtonClicked()
+     news_dialog.exec();
+ }
+ 
+-void MainWindow::onCatChanged(int)
+-{
+-    setCatBackground(APPLICATION->settings()->get("TheCat").toBool());
+-}
+ 
+ void MainWindow::on_actionAbout_triggered()
+ {
+@@ -1765,6 +1748,10 @@ void MainWindow::updateStatusCenter()
+             tr("Total playtime: %1")
+                 .arg(Time::prettifyDuration(timePlayed, APPLICATION->settings()->get("ShowGameTimeWithoutDays").toBool())));
+     }
++
++    if (m_home) {
++        m_home->setSummary(APPLICATION->instances()->rowCount(), timePlayed > 0 ? m_statusCenter->text() : QString());
++    }
+ }
+ // "Instance actions" are actions that require an instance to be selected (i.e. "new instance" is not here)
+ // Actions that also require other conditions (e.g. a running instance) won't be changed.
+diff --git a/launcher/ui/MainWindow.h b/launcher/ui/MainWindow.h
+index 7dcba88..af0b1d8 100644
+--- a/launcher/ui/MainWindow.h
++++ b/launcher/ui/MainWindow.h
+@@ -58,7 +58,7 @@ class QLabel;
+ class MinecraftLauncher;
+ class BaseProfilerFactory;
+ class InstanceView;
+-class KonamiCode;
++class HomeSurface;
+ class InstanceTask;
+ class LabeledToolButton;
+ 
+@@ -88,10 +88,6 @@ class MainWindow : public QMainWindow {
+     QMenu* createPopupMenu() override;
+ 
+    private slots:
+-    void onCatToggled(bool);
+-
+-    void onCatChanged(int);
+-
+     void on_actionAbout_triggered();
+ 
+     void on_actionAddInstance_triggered();
+@@ -115,7 +111,6 @@ class MainWindow : public QMainWindow {
+ 
+     void on_actionViewIconThemeFolder_triggered();
+     void on_actionViewWidgetThemeFolder_triggered();
+-    void on_actionViewCatPackFolder_triggered();
+     void on_actionViewIconsFolder_triggered();
+     void on_actionViewLogsFolder_triggered();
+     void on_actionViewJavaFolder_triggered();
+@@ -202,8 +197,6 @@ class MainWindow : public QMainWindow {
+ 
+     void updateNewsLabel();
+ 
+-    void konamiTriggered();
+-
+     void globalSettingsClosed();
+ 
+     void setStatusBarVisibility(bool);
+@@ -221,7 +214,6 @@ class MainWindow : public QMainWindow {
+ 
+     void addInstance(const QString& url = QString(), const QMap<QString, QString>& extra_info = {});
+     void activateInstance(BaseInstance* instance);
+-    void setCatBackground(bool enabled);
+     void updateInstanceToolIcon(QString new_icon);
+     void setSelectedInstanceById(const QString& id);
+     void updateStatusCenter();
+@@ -234,6 +226,8 @@ class MainWindow : public QMainWindow {
+     Ui::MainWindow* ui;
+     // these are managed by Qt's memory management model!
+     InstanceView* view = nullptr;
++    HomeSurface* m_home = nullptr;
++    QAction* m_animatedBackgroundAction = nullptr;
+     InstanceProxyModel* proxymodel = nullptr;
+     QToolButton* newsLabel = nullptr;
+     QLabel* m_statusLeft = nullptr;
+@@ -241,7 +235,6 @@ class MainWindow : public QMainWindow {
+     LabeledToolButton* changeIconButton = nullptr;
+     LabeledToolButton* renameButton = nullptr;
+     QToolButton* helpMenuButton = nullptr;
+-    KonamiCode* secretEventFilter = nullptr;
+ 
+     std::shared_ptr<Setting> instanceToolbarSetting = nullptr;
+ 
+diff --git a/launcher/ui/MainWindow.ui b/launcher/ui/MainWindow.ui
+index 54b0b5e..49268a6 100644
+--- a/launcher/ui/MainWindow.ui
++++ b/launcher/ui/MainWindow.ui
+@@ -1,4 +1,4 @@
+-<?xml version="1.0" encoding="UTF-8"?>
++<?xml version='1.0' encoding='UTF-8'?>
+ <ui version="4.0">
+  <class>MainWindow</class>
+  <widget class="QMainWindow" name="MainWindow">
+@@ -29,7 +29,7 @@
+     </property>
+    </layout>
+   </widget>
+-  <widget class="QStatusBar" name="statusBar"/>
++  <widget class="QStatusBar" name="statusBar" />
+   <widget class="QToolBar" name="mainToolBar">
+    <property name="windowTitle">
+     <string>Main Toolbar</string>
+@@ -49,15 +49,14 @@
+    <attribute name="toolBarBreak">
+     <bool>false</bool>
+    </attribute>
+-   <addaction name="actionAddInstance"/>
+-   <addaction name="separator"/>
+-   <addaction name="actionFoldersButton"/>
+-   <addaction name="actionSettings"/>
+-   <addaction name="actionHelpButton"/>
+-   <addaction name="actionCheckUpdate"/>
+-   <addaction name="separator"/>
+-   <addaction name="actionCAT"/>
+-   <addaction name="actionAccountsButton"/>
++   <addaction name="actionAddInstance" />
++   <addaction name="separator" />
++   <addaction name="actionFoldersButton" />
++   <addaction name="actionSettings" />
++   <addaction name="actionHelpButton" />
++   <addaction name="actionCheckUpdate" />
++   <addaction name="separator" />
++   <addaction name="actionAccountsButton" />
+   </widget>
+   <widget class="QToolBar" name="newsToolBar">
+    <property name="windowTitle">
+@@ -84,7 +83,7 @@
+    <attribute name="toolBarBreak">
+     <bool>false</bool>
+    </attribute>
+-   <addaction name="actionMoreNews"/>
++   <addaction name="actionMoreNews" />
+   </widget>
+   <widget class="WideBar" name="instanceToolBar">
+    <property name="windowTitle">
+@@ -114,16 +113,16 @@
+    <attribute name="toolBarBreak">
+     <bool>false</bool>
+    </attribute>
+-   <addaction name="actionLaunchInstance"/>
+-   <addaction name="actionKillInstance"/>
+-   <addaction name="separator"/>
+-   <addaction name="actionEditInstance"/>
+-   <addaction name="actionChangeInstGroup"/>
+-   <addaction name="actionViewSelectedInstFolder"/>
+-   <addaction name="actionExportInstance"/>
+-   <addaction name="actionCopyInstance"/>
+-   <addaction name="actionDeleteInstance"/>
+-   <addaction name="actionCreateInstanceShortcut"/>
++   <addaction name="actionLaunchInstance" />
++   <addaction name="actionKillInstance" />
++   <addaction name="separator" />
++   <addaction name="actionEditInstance" />
++   <addaction name="actionChangeInstGroup" />
++   <addaction name="actionViewSelectedInstFolder" />
++   <addaction name="actionExportInstance" />
++   <addaction name="actionCopyInstance" />
++   <addaction name="actionDeleteInstance" />
++   <addaction name="actionCreateInstanceShortcut" />
+   </widget>
+   <widget class="QMenuBar" name="menuBar">
+    <property name="geometry">
+@@ -141,21 +140,21 @@
+     <property name="toolTipsVisible">
+      <bool>true</bool>
+     </property>
+-    <addaction name="actionAddInstance"/>
+-    <addaction name="separator"/>
+-    <addaction name="actionLaunchInstance"/>
+-    <addaction name="actionKillInstance"/>
+-    <addaction name="separator"/>
+-    <addaction name="actionEditInstance"/>
+-    <addaction name="actionChangeInstGroup"/>
+-    <addaction name="actionViewSelectedInstFolder"/>
+-    <addaction name="actionExportInstance"/>
+-    <addaction name="actionCopyInstance"/>
+-    <addaction name="actionDeleteInstance"/>
+-    <addaction name="actionCreateInstanceShortcut"/>
+-    <addaction name="separator"/>
+-    <addaction name="actionSettings"/>
+-    <addaction name="actionCloseWindow"/>
++    <addaction name="actionAddInstance" />
++    <addaction name="separator" />
++    <addaction name="actionLaunchInstance" />
++    <addaction name="actionKillInstance" />
++    <addaction name="separator" />
++    <addaction name="actionEditInstance" />
++    <addaction name="actionChangeInstGroup" />
++    <addaction name="actionViewSelectedInstFolder" />
++    <addaction name="actionExportInstance" />
++    <addaction name="actionCopyInstance" />
++    <addaction name="actionDeleteInstance" />
++    <addaction name="actionCreateInstanceShortcut" />
++    <addaction name="separator" />
++    <addaction name="actionSettings" />
++    <addaction name="actionCloseWindow" />
+    </widget>
+    <widget class="QMenu" name="editMenu">
+     <property name="title">
+@@ -164,7 +163,7 @@
+     <property name="toolTipsVisible">
+      <bool>true</bool>
+     </property>
+-    <addaction name="actionUndoTrashInstance"/>
++    <addaction name="actionUndoTrashInstance" />
+    </widget>
+    <widget class="QMenu" name="viewMenu">
+     <property name="title">
+@@ -173,12 +172,11 @@
+     <property name="toolTipsVisible">
+      <bool>true</bool>
+     </property>
+-    <addaction name="actionChangeTheme"/>
+-    <addaction name="separator"/>
+-    <addaction name="actionCAT"/>
+-    <addaction name="actionToggleStatusBar"/>
+-    <addaction name="actionLockToolbars"/>
+-    <addaction name="separator"/>
++    <addaction name="actionChangeTheme" />
++    <addaction name="separator" />
++    <addaction name="actionToggleStatusBar" />
++    <addaction name="actionLockToolbars" />
++    <addaction name="separator" />
+    </widget>
+    <widget class="QMenu" name="foldersMenu">
+     <property name="title">
+@@ -187,19 +185,18 @@
+     <property name="toolTipsVisible">
+      <bool>true</bool>
+     </property>
+-    <addaction name="actionViewLauncherRootFolder"/>
+-    <addaction name="separator"/>
+-    <addaction name="actionViewInstanceFolder"/>
+-    <addaction name="actionViewCentralModsFolder"/>
+-    <addaction name="actionViewSkinsFolder"/>
+-    <addaction name="actionViewJavaFolder"/>
+-    <addaction name="separator"/>
+-    <addaction name="actionViewIconThemeFolder"/>
+-    <addaction name="actionViewWidgetThemeFolder"/>
+-    <addaction name="actionViewCatPackFolder"/>
+-    <addaction name="actionViewIconsFolder"/>
+-    <addaction name="separator"/>
+-    <addaction name="actionViewLogsFolder"/>
++    <addaction name="actionViewLauncherRootFolder" />
++    <addaction name="separator" />
++    <addaction name="actionViewInstanceFolder" />
++    <addaction name="actionViewCentralModsFolder" />
++    <addaction name="actionViewSkinsFolder" />
++    <addaction name="actionViewJavaFolder" />
++    <addaction name="separator" />
++    <addaction name="actionViewIconThemeFolder" />
++    <addaction name="actionViewWidgetThemeFolder" />
++    <addaction name="actionViewIconsFolder" />
++    <addaction name="separator" />
++    <addaction name="actionViewLogsFolder" />
+    </widget>
+    <widget class="QMenu" name="accountsMenu">
+     <property name="title">
+@@ -213,30 +210,30 @@
+     <property name="toolTipsVisible">
+      <bool>true</bool>
+     </property>
+-    <addaction name="actionClearMetadata"/>
+-    <addaction name="actionReportBug"/>
+-    <addaction name="actionViewLog"/>
+-    <addaction name="actionAddToPATH"/>
+-    <addaction name="separator"/>
+-    <addaction name="actionMATRIX"/>
+-    <addaction name="actionDISCORD"/>
+-    <addaction name="actionREDDIT"/>
+-    <addaction name="separator"/>
+-    <addaction name="actionMoreNews"/>
+-    <addaction name="actionCheckUpdate"/>
+-    <addaction name="actionOpenWiki"/>
+-    <addaction name="actionAbout"/>
++    <addaction name="actionClearMetadata" />
++    <addaction name="actionReportBug" />
++    <addaction name="actionViewLog" />
++    <addaction name="actionAddToPATH" />
++    <addaction name="separator" />
++    <addaction name="actionMATRIX" />
++    <addaction name="actionDISCORD" />
++    <addaction name="actionREDDIT" />
++    <addaction name="separator" />
++    <addaction name="actionMoreNews" />
++    <addaction name="actionCheckUpdate" />
++    <addaction name="actionOpenWiki" />
++    <addaction name="actionAbout" />
+    </widget>
+-   <addaction name="fileMenu"/>
+-   <addaction name="editMenu"/>
+-   <addaction name="viewMenu"/>
+-   <addaction name="foldersMenu"/>
+-   <addaction name="accountsMenu"/>
+-   <addaction name="helpMenu"/>
++   <addaction name="fileMenu" />
++   <addaction name="editMenu" />
++   <addaction name="viewMenu" />
++   <addaction name="foldersMenu" />
++   <addaction name="accountsMenu" />
++   <addaction name="helpMenu" />
+   </widget>
+   <action name="actionMoreNews">
+    <property name="icon">
+-    <iconset theme="news"/>
++    <iconset theme="news" />
+    </property>
+    <property name="text">
+     <string>More News...</string>
+@@ -245,20 +242,6 @@
+     <string>Open the development blog to read more news about %1.</string>
+    </property>
+   </action>
+-  <action name="actionCAT">
+-   <property name="checkable">
+-    <bool>true</bool>
+-   </property>
+-   <property name="icon">
+-    <iconset theme="cat"/>
+-   </property>
+-   <property name="text">
+-    <string>&amp;Meow</string>
+-   </property>
+-   <property name="toolTip">
+-    <string>It's a fluffy kitty :3</string>
+-   </property>
+-  </action>
+   <action name="actionToggleStatusBar">
+    <property name="checkable">
+     <bool>true</bool>
+@@ -285,7 +268,7 @@
+   </action>
+   <action name="actionAddInstance">
+    <property name="icon">
+-    <iconset theme="new"/>
++    <iconset theme="new" />
+    </property>
+    <property name="text">
+     <string>Add Instanc&amp;e...</string>
+@@ -296,7 +279,7 @@
+   </action>
+   <action name="actionCheckUpdate">
+    <property name="icon">
+-    <iconset theme="checkupdate"/>
++    <iconset theme="checkupdate" />
+    </property>
+    <property name="text">
+     <string>&amp;Update...</string>
+@@ -310,7 +293,7 @@
+   </action>
+   <action name="actionSettings">
+    <property name="icon">
+-    <iconset theme="settings"/>
++    <iconset theme="settings" />
+    </property>
+    <property name="text">
+     <string>Setti&amp;ngs...</string>
+@@ -324,7 +307,7 @@
+   </action>
+   <action name="actionManageAccounts">
+    <property name="icon">
+-    <iconset theme="accounts"/>
++    <iconset theme="accounts" />
+    </property>
+    <property name="text">
+     <string>&amp;Manage Accounts...</string>
+@@ -332,7 +315,7 @@
+   </action>
+   <action name="actionLaunchInstance">
+    <property name="icon">
+-    <iconset theme="launch"/>
++    <iconset theme="launch" />
+    </property>
+    <property name="text">
+     <string>&amp;Launch</string>
+@@ -343,7 +326,7 @@
+   </action>
+   <action name="actionKillInstance">
+    <property name="icon">
+-    <iconset theme="status-bad"/>
++    <iconset theme="status-bad" />
+    </property>
+    <property name="text">
+     <string>&amp;Kill</string>
+@@ -357,7 +340,7 @@
+   </action>
+   <action name="actionRenameInstance">
+    <property name="icon">
+-    <iconset theme="rename"/>
++    <iconset theme="rename" />
+    </property>
+    <property name="text">
+     <string>Rename</string>
+@@ -368,7 +351,7 @@
+   </action>
+   <action name="actionChangeInstGroup">
+    <property name="icon">
+-    <iconset theme="tag"/>
++    <iconset theme="tag" />
+    </property>
+    <property name="text">
+     <string>&amp;Change Group...</string>
+@@ -390,7 +373,7 @@
+   </action>
+   <action name="actionEditInstance">
+    <property name="icon">
+-    <iconset theme="settings"/>
++    <iconset theme="settings" />
+    </property>
+    <property name="text">
+     <string>&amp;Edit...</string>
+@@ -404,7 +387,7 @@
+   </action>
+   <action name="actionViewSelectedInstFolder">
+    <property name="icon">
+-    <iconset theme="viewfolder"/>
++    <iconset theme="viewfolder" />
+    </property>
+    <property name="text">
+     <string>&amp;Folder</string>
+@@ -415,7 +398,7 @@
+   </action>
+   <action name="actionDeleteInstance">
+    <property name="icon">
+-    <iconset theme="delete"/>
++    <iconset theme="delete" />
+    </property>
+    <property name="text">
+     <string>Dele&amp;te</string>
+@@ -429,7 +412,7 @@
+   </action>
+   <action name="actionCopyInstance">
+    <property name="icon">
+-    <iconset theme="copy"/>
++    <iconset theme="copy" />
+    </property>
+    <property name="text">
+     <string>Cop&amp;y...</string>
+@@ -443,7 +426,7 @@
+   </action>
+   <action name="actionExportInstance">
+    <property name="icon">
+-    <iconset theme="export"/>
++    <iconset theme="export" />
+    </property>
+    <property name="text">
+     <string>E&amp;xport...</string>
+@@ -454,7 +437,7 @@
+   </action>
+   <action name="actionExportInstanceZip">
+    <property name="icon">
+-    <iconset theme="launcher"/>
++    <iconset theme="launcher" />
+    </property>
+    <property name="text">
+     <string>Prism Launcher (zip)</string>
+@@ -462,7 +445,7 @@
+   </action>
+   <action name="actionExportInstanceMrPack">
+    <property name="icon">
+-    <iconset theme="modrinth"/>
++    <iconset theme="modrinth" />
+    </property>
+    <property name="text">
+     <string>Modrinth (mrpack)</string>
+@@ -470,7 +453,7 @@
+   </action>
+   <action name="actionExportInstanceFlamePack">
+    <property name="icon">
+-    <iconset theme="flame"/>
++    <iconset theme="flame" />
+    </property>
+    <property name="text">
+     <string>CurseForge (zip)</string>
+@@ -478,7 +461,7 @@
+   </action>
+   <action name="actionCreateInstanceShortcut">
+    <property name="icon">
+-    <iconset theme="shortcut"/>
++    <iconset theme="shortcut" />
+    </property>
+    <property name="text">
+     <string>Create Shortcut</string>
+@@ -489,7 +472,7 @@
+   </action>
+   <action name="actionNoAccountsAdded">
+    <property name="icon">
+-    <iconset theme="noaccount"/>
++    <iconset theme="noaccount" />
+    </property>
+    <property name="text">
+     <string>No accounts added!</string>
+@@ -500,7 +483,7 @@
+     <bool>true</bool>
+    </property>
+    <property name="icon">
+-    <iconset theme="noaccount"/>
++    <iconset theme="noaccount" />
+    </property>
+    <property name="text">
+     <string>No Default Account</string>
+@@ -511,7 +494,7 @@
+   </action>
+   <action name="actionCloseWindow">
+    <property name="icon">
+-    <iconset theme="status-bad"/>
++    <iconset theme="status-bad" />
+    </property>
+    <property name="text">
+     <string>Close &amp;Window</string>
+@@ -525,7 +508,7 @@
+   </action>
+   <action name="actionViewInstanceFolder">
+    <property name="icon">
+-    <iconset theme="viewfolder"/>
++    <iconset theme="viewfolder" />
+    </property>
+    <property name="text">
+     <string>&amp;Instances</string>
+@@ -536,7 +519,7 @@
+   </action>
+   <action name="actionViewLauncherRootFolder">
+    <property name="icon">
+-    <iconset theme="viewfolder"/>
++    <iconset theme="viewfolder" />
+    </property>
+    <property name="text">
+     <string>Launcher &amp;Root</string>
+@@ -547,7 +530,7 @@
+   </action>
+   <action name="actionViewCentralModsFolder">
+    <property name="icon">
+-    <iconset theme="centralmods"/>
++    <iconset theme="centralmods" />
+    </property>
+    <property name="text">
+     <string>&amp;Central Mods</string>
+@@ -558,7 +541,7 @@
+   </action>
+   <action name="actionViewSkinsFolder">
+    <property name="icon">
+-    <iconset theme="viewfolder"/>
++    <iconset theme="viewfolder" />
+    </property>
+    <property name="text">
+     <string>&amp;Skins</string>
+@@ -569,7 +552,7 @@
+   </action>
+   <action name="actionViewIconsFolder">
+    <property name="icon">
+-    <iconset theme="viewfolder"/>
++    <iconset theme="viewfolder" />
+    </property>
+    <property name="text">
+     <string>Instance Icons</string>
+@@ -580,7 +563,7 @@
+   </action>
+   <action name="actionViewLogsFolder">
+    <property name="icon">
+-    <iconset theme="viewfolder"/>
++    <iconset theme="viewfolder" />
+    </property>
+    <property name="text">
+     <string>Logs</string>
+@@ -596,7 +579,7 @@
+   </action>
+   <action name="actionReportBug">
+    <property name="icon">
+-    <iconset theme="bug"/>
++    <iconset theme="bug" />
+    </property>
+    <property name="text">
+     <string>Report a Bug or Suggest a Feature</string>
+@@ -607,7 +590,7 @@
+   </action>
+   <action name="actionDISCORD">
+    <property name="icon">
+-    <iconset theme="discord"/>
++    <iconset theme="discord" />
+    </property>
+    <property name="text">
+     <string>&amp;Discord Guild</string>
+@@ -618,7 +601,7 @@
+   </action>
+   <action name="actionMATRIX">
+    <property name="icon">
+-    <iconset theme="matrix"/>
++    <iconset theme="matrix" />
+    </property>
+    <property name="text">
+     <string>&amp;Matrix Space</string>
+@@ -629,7 +612,7 @@
+   </action>
+   <action name="actionREDDIT">
+    <property name="icon">
+-    <iconset theme="reddit-alien"/>
++    <iconset theme="reddit-alien" />
+    </property>
+    <property name="text">
+     <string>Sub&amp;reddit</string>
+@@ -640,7 +623,7 @@
+   </action>
+   <action name="actionAbout">
+    <property name="icon">
+-    <iconset theme="about"/>
++    <iconset theme="about" />
+    </property>
+    <property name="text">
+     <string>&amp;About %1</string>
+@@ -654,7 +637,7 @@
+   </action>
+   <action name="actionClearMetadata">
+    <property name="icon">
+-    <iconset theme="refresh"/>
++    <iconset theme="refresh" />
+    </property>
+    <property name="text">
+     <string>&amp;Clear Metadata Cache</string>
+@@ -677,7 +660,7 @@
+   </action>
+   <action name="actionAddToPATH">
+    <property name="icon">
+-    <iconset theme="custom-commands"/>
++    <iconset theme="custom-commands" />
+    </property>
+    <property name="text">
+     <string>Install to &amp;PATH</string>
+@@ -688,7 +671,7 @@
+   </action>
+   <action name="actionFoldersButton">
+    <property name="icon">
+-    <iconset theme="viewfolder"/>
++    <iconset theme="viewfolder" />
+    </property>
+    <property name="text">
+     <string>Folders</string>
+@@ -699,7 +682,7 @@
+   </action>
+   <action name="actionHelpButton">
+    <property name="icon">
+-    <iconset theme="help"/>
++    <iconset theme="help" />
+    </property>
+    <property name="text">
+     <string>Help</string>
+@@ -710,7 +693,7 @@
+   </action>
+   <action name="actionAccountsButton">
+    <property name="icon">
+-    <iconset theme="noaccount"/>
++    <iconset theme="noaccount" />
+    </property>
+    <property name="text">
+     <string>Accounts</string>
+@@ -718,7 +701,7 @@
+   </action>
+   <action name="actionOpenWiki">
+    <property name="icon">
+-    <iconset theme="help"/>
++    <iconset theme="help" />
+    </property>
+    <property name="text">
+     <string>%1 &amp;Wiki</string>
+@@ -729,7 +712,7 @@
+   </action>
+   <action name="actionViewWidgetThemeFolder">
+    <property name="icon">
+-    <iconset theme="viewfolder"/>
++    <iconset theme="viewfolder" />
+    </property>
+    <property name="text">
+     <string>&amp;Widget Themes</string>
+@@ -740,7 +723,7 @@
+   </action>
+   <action name="actionViewIconThemeFolder">
+    <property name="icon">
+-    <iconset theme="viewfolder"/>
++    <iconset theme="viewfolder" />
+    </property>
+    <property name="text">
+     <string>I&amp;con Theme</string>
+@@ -749,20 +732,9 @@
+     <string>Open the icon theme folder in a file browser.</string>
+    </property>
+   </action>
+-  <action name="actionViewCatPackFolder">
+-   <property name="icon">
+-    <iconset theme="viewfolder"/>
+-   </property>
+-   <property name="text">
+-    <string>Cat Packs</string>
+-   </property>
+-   <property name="toolTip">
+-    <string>Open the cat packs folder in a file browser.</string>
+-   </property>
+-  </action>
+   <action name="actionViewJavaFolder">
+    <property name="icon">
+-    <iconset theme="viewfolder"/>
++    <iconset theme="viewfolder" />
+    </property>
+    <property name="text">
+     <string>Java</string>
+@@ -779,6 +751,6 @@
+    <header>ui/widgets/WideBar.h</header>
+   </customwidget>
+  </customwidgets>
+- <resources/>
+- <connections/>
+-</ui>
++ <resources />
++ <connections />
++</ui>
+\ No newline at end of file
+diff --git a/launcher/ui/instanceview/InstanceDelegate.cpp b/launcher/ui/instanceview/InstanceDelegate.cpp
+index c711580..38ea191 100644
+--- a/launcher/ui/instanceview/InstanceDelegate.cpp
++++ b/launcher/ui/instanceview/InstanceDelegate.cpp
+@@ -37,6 +37,7 @@
+ #include <QApplication>
+ #include <QDebug>
+ #include <QPainter>
++#include <QPainterPath>
+ #include <QTextLayout>
+ #include <QTextOption>
+ #include <QtMath>
+@@ -70,15 +71,50 @@ static void viewItemTextLayout(QTextLayout& textLayout, int lineWidth, qreal& he
+ 
+ ListViewDelegate::ListViewDelegate(QObject* parent) : QStyledItemDelegate(parent) {}
+ 
++/*!
++ * Paints the instance card itself: a rounded plate that follows the theme
++ * palette, an accent ring for the selected card and a slightly brighter fill
++ * while the pointer is over it. The plate is translucent so the home
++ * background shows through between the cards.
++ */
+ void drawSelectionRect(QPainter* painter, const QStyleOptionViewItem& option, const QRect& rect)
+ {
+-    if ((option.state & QStyle::State_Selected))
+-        painter->fillRect(rect, option.palette.brush(QPalette::Highlight));
+-    else {
+-        QColor backgroundColor = option.palette.color(QPalette::Window);
+-        backgroundColor.setAlpha(160);
+-        painter->fillRect(rect, QBrush(backgroundColor));
++    const bool selected = option.state & QStyle::State_Selected;
++
++    QColor background = selected ? option.palette.color(QPalette::Highlight) : option.palette.color(QPalette::AlternateBase);
++    if (!selected)
++        background.setAlpha(212);
++
++    const qreal inset = 2.5;
++    const QRectF card = QRectF(rect).adjusted(inset, inset, -inset, -inset);
++
++    painter->save();
++    painter->setRenderHint(QPainter::Antialiasing, true);
++
++    QPainterPath path;
++    path.addRoundedRect(card, 12, 12);
++    painter->fillPath(path, background);
++
++    if (selected) {
++        QColor ring = option.palette.color(QPalette::Highlight).lighter(140);
++        ring.setAlpha(210);
++        painter->setPen(QPen(ring, 1.4));
++        painter->setBrush(Qt::NoBrush);
++        painter->drawPath(path);
++    } else {
++        // AlternateBase sits very close to the window colour on a light theme,
++        // so the plate would disappear; a hairline keeps the card edges legible.
++        const qreal delta = qAbs(background.lightnessF() - option.palette.color(QPalette::Window).lightnessF());
++        if (delta < 0.12) {
++            QColor border = option.palette.color(QPalette::WindowText);
++            border.setAlpha(40);
++            painter->setPen(QPen(border, 1.0));
++            painter->setBrush(Qt::NoBrush);
++            painter->drawPath(path);
++        }
+     }
++
++    painter->restore();
+ }
+ 
+ void drawFocusRect(QPainter* painter, const QStyleOptionViewItem& option, const QRect& rect)
+@@ -205,7 +241,7 @@ void ListViewDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
+     {
+         // FIXME: unused
+         // QSize textSize = viewItemTextSize ( &opt );
+-        drawSelectionRect(painter, opt, textHighlightRect);
++        drawSelectionRect(painter, opt, opt.rect);
+         /*
+         QPalette::ColorGroup cg;
+         QStyleOptionViewItem opt2(opt);
+diff --git a/launcher/ui/instanceview/InstanceNameFilter.h b/launcher/ui/instanceview/InstanceNameFilter.h
+new file mode 100644
+index 0000000..9aefada
+--- /dev/null
++++ b/launcher/ui/instanceview/InstanceNameFilter.h
+@@ -0,0 +1,38 @@
++// SPDX-License-Identifier: GPL-3.0-only
++/*
++ *  Prism Launcher - Minecraft Launcher
++ *  Copyright (C) 2026 Prism Launcher contributors
++ *
++ *  This program is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, version 3.
++ *
++ *  This program is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
++ */
++
++#pragma once
++
++#include <QString>
++
++/*!
++ * Matching rule for the home screen search box.
++ *
++ * Case-insensitive substring match on the instance name; surrounding
++ * whitespace is ignored, and an empty filter matches everything. Kept free of
++ * launcher dependencies so it can be unit tested on its own, and used by
++ * InstanceProxyModel::filterAcceptsRow().
++ */
++inline bool instanceNameMatchesFilter(const QString& name, const QString& filter)
++{
++    const QString needle = filter.trimmed();
++    if (needle.isEmpty())
++        return true;
++
++    return name.contains(needle, Qt::CaseInsensitive);
++}
+diff --git a/launcher/ui/instanceview/InstanceProxyModel.cpp b/launcher/ui/instanceview/InstanceProxyModel.cpp
+index ab6bef6..2e3d1ca 100644
+--- a/launcher/ui/instanceview/InstanceProxyModel.cpp
++++ b/launcher/ui/instanceview/InstanceProxyModel.cpp
+@@ -15,6 +15,8 @@
+ 
+ #include "InstanceProxyModel.h"
+ 
++#include "InstanceNameFilter.h"
++
+ #include <BaseInstance.h>
+ #include <icons/IconList.h>
+ #include "Application.h"
+@@ -39,6 +41,36 @@ QVariant InstanceProxyModel::data(const QModelIndex& index, int role) const
+     return data;
+ }
+ 
++/*!
++ * The home screen search box drives this through setFilterFixedString(). The
++ * base class would match on its default role/column plumbing, which the
++ * instance model does not really support (the name is DisplayRole, but the
++ * grouping and the icon live in custom roles), so the match is done here
++ * explicitly against the instance name.
++ */
++bool InstanceProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const
++{
++    const QAbstractItemModel* source = sourceModel();
++    if (!source)
++        return true;
++
++    if (m_filter.isEmpty())
++        return true;
++
++    const QModelIndex index = source->index(sourceRow, 0, sourceParent);
++    return instanceNameMatchesFilter(source->data(index, Qt::DisplayRole).toString(), m_filter);
++}
++
++void InstanceProxyModel::setInstanceFilter(const QString& filter)
++{
++    const QString normalized = filter.trimmed();
++    if (m_filter == normalized)
++        return;
++
++    m_filter = normalized;
++    invalidateFilter();
++}
++
+ bool InstanceProxyModel::lessThan(const QModelIndex& left, const QModelIndex& right) const
+ {
+     const QString leftCategory = left.data(InstanceViewRoles::GroupRole).toString();
+diff --git a/launcher/ui/instanceview/InstanceProxyModel.h b/launcher/ui/instanceview/InstanceProxyModel.h
+index 13fec1b..1c8256d 100644
+--- a/launcher/ui/instanceview/InstanceProxyModel.h
++++ b/launcher/ui/instanceview/InstanceProxyModel.h
+@@ -24,11 +24,21 @@ class InstanceProxyModel : public QSortFilterProxyModel {
+    public:
+     InstanceProxyModel(QObject* parent = 0);
+ 
++    /*!
++     * Filters the view by instance name. Used by the home screen search box:
++     * unlike setFilterFixedString() this keeps the raw string, so escaping and
++     * Qt's regex plumbing cannot turn a typed space into a non-match.
++     */
++    void setInstanceFilter(const QString& filter);
++    QString instanceFilter() const { return m_filter; }
++
+    protected:
+     QVariant data(const QModelIndex& index, int role) const override;
++    bool filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const override;
+     bool lessThan(const QModelIndex& left, const QModelIndex& right) const override;
+     bool subSortLessThan(const QModelIndex& left, const QModelIndex& right) const;
+ 
+    private:
+     QCollator m_naturalSort;
++    QString m_filter;
+ };
+diff --git a/launcher/ui/instanceview/InstanceView.cpp b/launcher/ui/instanceview/InstanceView.cpp
+index aff61cb..88ae5c8 100644
+--- a/launcher/ui/instanceview/InstanceView.cpp
++++ b/launcher/ui/instanceview/InstanceView.cpp
+@@ -49,7 +49,6 @@
+ #include <QtMath>
+ 
+ #include "VisualGroup.h"
+-#include "ui/themes/CatPainter.h"
+ #include "ui/themes/ThemeManager.h"
+ 
+ #include <Application.h>
+@@ -72,7 +71,6 @@ InstanceView::InstanceView(QWidget* parent) : QAbstractItemView(parent)
+     setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+     setAcceptDrops(true);
+     setAutoScroll(true);
+-    setPaintCat(APPLICATION->settings()->get("TheCat").toBool());
+     connect(verticalScrollBar(), &QScrollBar::valueChanged, viewport(), QOverload<>::of(&QWidget::update));
+     connect(horizontalScrollBar(), &QScrollBar::valueChanged, viewport(), QOverload<>::of(&QWidget::update));
+ }
+@@ -81,9 +79,6 @@ InstanceView::~InstanceView()
+ {
+     qDeleteAll(m_groups);
+     m_groups.clear();
+-    if (m_cat) {
+-        m_cat->deleteLater();
+-    }
+ }
+ 
+ void InstanceView::setModel(QAbstractItemModel* model)
+@@ -440,18 +435,6 @@ void InstanceView::mouseDoubleClickEvent(QMouseEvent* event)
+     }
+ }
+ 
+-void InstanceView::setPaintCat(bool visible)
+-{
+-    if (m_cat) {
+-        disconnect(m_cat, &CatPainter::updateFrame, this, nullptr);
+-        delete m_cat;
+-        m_cat = nullptr;
+-    }
+-    if (visible) {
+-        m_cat = new CatPainter(APPLICATION->themeManager()->getCatPack(), this);
+-        connect(m_cat, &CatPainter::updateFrame, this, [this] { viewport()->update(); });
+-    }
+-}
+ 
+ void InstanceView::paintEvent([[maybe_unused]] QPaintEvent* event)
+ {
+@@ -459,10 +442,6 @@ void InstanceView::paintEvent([[maybe_unused]] QPaintEvent* event)
+ 
+     QPainter painter(this->viewport());
+ 
+-    if (m_cat) {
+-        m_cat->paint(&painter, this->viewport()->rect());
+-    }
+-
+     QStyleOptionViewItem option;
+     initViewItemOption(&option);
+     option.widget = this;
+diff --git a/launcher/ui/instanceview/InstanceView.h b/launcher/ui/instanceview/InstanceView.h
+index 5d9dbf7..2776bba 100644
+--- a/launcher/ui/instanceview/InstanceView.h
++++ b/launcher/ui/instanceview/InstanceView.h
+@@ -41,7 +41,6 @@
+ #include <QScrollBar>
+ #include <functional>
+ #include "VisualGroup.h"
+-#include "ui/themes/CatPainter.h"
+ 
+ struct InstanceViewRoles {
+     enum { GroupRole = Qt::UserRole, ProgressValueRole, ProgressMaximumRole };
+@@ -78,7 +77,6 @@ class InstanceView : public QAbstractItemView {
+     virtual QRegion visualRegionForSelection(const QItemSelection& selection) const override;
+ 
+     int spacing() const { return m_spacing; };
+-    void setPaintCat(bool visible);
+ 
+    public slots:
+     virtual void updateGeometries() override;
+@@ -120,16 +118,15 @@ class InstanceView : public QAbstractItemView {
+     visibilityFunction m_fVisibility;
+ 
+     // geometry
+-    int m_leftMargin = 5;
+-    int m_rightMargin = 5;
+-    int m_bottomMargin = 5;
+-    int m_categoryMargin = 5;
+-    int m_spacing = 5;
++    int m_leftMargin = 14;
++    int m_rightMargin = 14;
++    int m_bottomMargin = 14;
++    int m_categoryMargin = 10;
++    int m_spacing = 10;
+     int m_itemWidth = 100;
+     int m_currentItemsPerRow = -1;
+     int m_currentCursorColumn = -1;
+     mutable QCache<int, QRect> m_geometryCache;
+-    CatPainter* m_cat = nullptr;
+ 
+     // point where the currently active mouse action started in geometry coordinates
+     QPoint m_pressedPosition;
+diff --git a/launcher/ui/themes/AuroraTheme.cpp b/launcher/ui/themes/AuroraTheme.cpp
+new file mode 100644
+index 0000000..dd9add7
+--- /dev/null
++++ b/launcher/ui/themes/AuroraTheme.cpp
+@@ -0,0 +1,94 @@
++// SPDX-License-Identifier: GPL-3.0-only
++/*
++ *  Prism Launcher - Minecraft Launcher
++ *  Copyright (C) 2026 Prism Launcher contributors
++ *
++ *  This program is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, version 3.
++ *
++ *  This program is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
++ */
++
++#include "AuroraTheme.h"
++
++#include <QFile>
++#include <QObject>
++
++#include "ThemeManager.h"
++
++QString AuroraTheme::id()
++{
++    return QStringLiteral("aurora");
++}
++
++QString AuroraTheme::name()
++{
++    return QObject::tr("Aurora");
++}
++
++QString AuroraTheme::tooltip()
++{
++    return QObject::tr("Modern dark theme with an animated home background.");
++}
++
++bool AuroraTheme::hasStyleSheet()
++{
++    return true;
++}
++
++QString AuroraTheme::appStyleSheet()
++{
++    QFile styleSheet(QStringLiteral(":/themes/aurora.qss"));
++    if (!styleSheet.open(QIODevice::ReadOnly | QIODevice::Text)) {
++        themeWarningLog() << "Could not load the Aurora stylesheet";
++        return {};
++    }
++    return QString::fromUtf8(styleSheet.readAll());
++}
++
++QPalette AuroraTheme::colorScheme()
++{
++    QPalette palette;
++    palette.setColor(QPalette::Window, QColor(14, 17, 23));
++    palette.setColor(QPalette::WindowText, QColor(231, 236, 245));
++    palette.setColor(QPalette::Base, QColor(21, 26, 35));
++    palette.setColor(QPalette::AlternateBase, QColor(27, 33, 44));
++    palette.setColor(QPalette::ToolTipBase, QColor(27, 33, 44));
++    palette.setColor(QPalette::ToolTipText, QColor(231, 236, 245));
++    palette.setColor(QPalette::Text, QColor(231, 236, 245));
++    palette.setColor(QPalette::Button, QColor(28, 36, 49));
++    palette.setColor(QPalette::ButtonText, QColor(231, 236, 245));
++    palette.setColor(QPalette::BrightText, Qt::white);
++    palette.setColor(QPalette::Link, QColor(143, 176, 255));
++    palette.setColor(QPalette::Highlight, QColor(58, 91, 224));
++    palette.setColor(QPalette::HighlightedText, Qt::white);
++    palette.setColor(QPalette::PlaceholderText, QColor(231, 236, 245, 120));
++    palette.setColor(QPalette::Light, QColor(44, 54, 72));
++    palette.setColor(QPalette::Midlight, QColor(36, 45, 60));
++    palette.setColor(QPalette::Dark, QColor(9, 12, 17));
++    palette.setColor(QPalette::Mid, QColor(18, 23, 31));
++    palette.setColor(QPalette::Shadow, QColor(5, 7, 10));
++    return fadeInactive(palette, fadeAmount(), fadeColor());
++}
++
++double AuroraTheme::fadeAmount()
++{
++    return 0.45;
++}
++
++QColor AuroraTheme::fadeColor()
++{
++    return QColor(14, 17, 23);
++}
++
++QString AuroraTheme::qtTheme()
++{
++    return QStringLiteral("Fusion");
++}
+diff --git a/launcher/ui/themes/AuroraTheme.h b/launcher/ui/themes/AuroraTheme.h
+new file mode 100644
+index 0000000..25807ab
+--- /dev/null
++++ b/launcher/ui/themes/AuroraTheme.h
+@@ -0,0 +1,38 @@
++// SPDX-License-Identifier: GPL-3.0-only
++/*
++ *  Prism Launcher - Minecraft Launcher
++ *  Copyright (C) 2026 Prism Launcher contributors
++ *
++ *  This program is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, version 3.
++ *
++ *  This program is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
++ */
++
++#pragma once
++
++#include "ITheme.h"
++
++/*!
++ * The launcher's built-in look: a deep, flat dark palette with an indigo
++ * accent, paired with the stylesheet in :/themes/aurora.qss.
++ */
++class AuroraTheme : public ITheme {
++   public:
++    QString id() override;
++    QString name() override;
++    QString tooltip() override;
++    bool hasStyleSheet() override;
++    QString appStyleSheet() override;
++    QPalette colorScheme() override;
++    double fadeAmount() override;
++    QColor fadeColor() override;
++    QString qtTheme() override;
++};
+diff --git a/launcher/ui/themes/CatPack.cpp b/launcher/ui/themes/CatPack.cpp
+deleted file mode 100644
+index 7d39c8c..0000000
+--- a/launcher/ui/themes/CatPack.cpp
++++ /dev/null
+@@ -1,140 +0,0 @@
+-// SPDX-License-Identifier: GPL-3.0-only
+-/*
+- *  Prism Launcher - Minecraft Launcher
+- *  Copyright (c) 2023 Trial97 <alexandru.tripon97@gmail.com>
+- *
+- *  This program is free software: you can redistribute it and/or modify
+- *  it under the terms of the GNU General Public License as published by
+- *  the Free Software Foundation, version 3.
+- *
+- *  This program is distributed in the hope that it will be useful,
+- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- *  GNU General Public License for more details.
+- *
+- *  You should have received a copy of the GNU General Public License
+- *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+- *
+- * This file incorporates work covered by the following copyright and
+- * permission notice:
+- *
+- *      Copyright 2013-2021 MultiMC Contributors
+- *
+- *      Licensed under the Apache License, Version 2.0 (the "License");
+- *      you may not use this file except in compliance with the License.
+- *      You may obtain a copy of the License at
+- *
+- *          http://www.apache.org/licenses/LICENSE-2.0
+- *
+- *      Unless required by applicable law or agreed to in writing, software
+- *      distributed under the License is distributed on an "AS IS" BASIS,
+- *      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- *      See the License for the specific language governing permissions and
+- *      limitations under the License.
+- */
+-
+-#include "ui/themes/CatPack.h"
+-#include <QDate>
+-#include <QDir>
+-#include <QDirIterator>
+-#include <QFileInfo>
+-#include <QImageReader>
+-#include <QRandomGenerator>
+-#include "FileSystem.h"
+-#include "Json.h"
+-
+-QString BasicCatPack::path() const
+-{
+-    const auto now = QDate::currentDate();
+-    const auto birthday = QDate(now.year(), 11, 1);
+-    const auto xmas = QDate(now.year(), 12, 25);
+-    const auto halloween = QDate(now.year(), 10, 31);
+-
+-    QString cat = QString(":/backgrounds/%1").arg(m_id);
+-    if (std::abs(now.daysTo(xmas)) <= 4) {
+-        cat += "-xmas";
+-    } else if (std::abs(now.daysTo(halloween)) <= 4) {
+-        cat += "-spooky";
+-    } else if (std::abs(now.daysTo(birthday)) <= 12) {
+-        cat += "-bday";
+-    }
+-    return cat;
+-}
+-
+-JsonCatPack::PartialDate partialDate(QJsonObject date)
+-{
+-    auto month = date["month"].toInt(1);
+-    if (month > 12)
+-        month = 12;
+-    else if (month <= 0)
+-        month = 1;
+-    auto day = date["day"].toInt(1);
+-    if (day > 31)
+-        day = 31;
+-    else if (day <= 0)
+-        day = 1;
+-    return { month, day };
+-};
+-
+-JsonCatPack::JsonCatPack(QFileInfo& manifestInfo) : BasicCatPack(manifestInfo.dir().dirName())
+-{
+-    QString path = manifestInfo.path();
+-    auto doc = Json::requireDocument(manifestInfo.absoluteFilePath(), "CatPack JSON file");
+-    const auto root = doc.object();
+-    m_name = Json::requireString(root, "name", "Catpack name");
+-    m_default_path = FS::PathCombine(path, Json::requireString(root, "default", "Default Cat"));
+-    auto variants = root["variants"].toArray();
+-    for (auto v : variants) {
+-        auto variant = v.toObject();
+-        m_variants << Variant{ FS::PathCombine(path, Json::requireString(variant, "path", "Variant path")),
+-                               partialDate(Json::requireObject(variant, "startTime", "Variant startTime")),
+-                               partialDate(Json::requireObject(variant, "endTime", "Variant endTime")) };
+-    }
+-}
+-
+-QDate ensureDay(int year, int month, int day)
+-{
+-    QDate date(year, month, 1);
+-    if (day > date.daysInMonth())
+-        day = date.daysInMonth();
+-    return QDate(year, month, day);
+-}
+-
+-QString JsonCatPack::path() const
+-{
+-    return path(QDate::currentDate());
+-}
+-
+-QString JsonCatPack::path(QDate now) const
+-{
+-    for (auto var : m_variants) {
+-        QDate startDate = ensureDay(now.year(), var.startTime.month, var.startTime.day);
+-        QDate endDate = ensureDay(now.year(), var.endTime.month, var.endTime.day);
+-        if (startDate > endDate) {  // it's spans over multiple years
+-            if (endDate < now)      // end date is in the past so jump one year into the future for endDate
+-                endDate = endDate.addYears(1);
+-            else  // end date is in the future so jump one year into the past for startDate
+-                startDate = startDate.addYears(-1);
+-        }
+-
+-        if (startDate <= now && now <= endDate)
+-            return var.path;
+-    }
+-    auto dInfo = QFileInfo(m_default_path);
+-    if (!dInfo.isDir())
+-        return m_default_path;
+-
+-    QStringList supportedImageFormats;
+-    for (auto format : QImageReader::supportedImageFormats()) {
+-        supportedImageFormats.append("*." + format);
+-    }
+-
+-    auto files = QDir(m_default_path).entryInfoList(supportedImageFormats, QDir::Files, QDir::Name);
+-    if (files.length() == 0)
+-        return "";
+-    auto idx = (now.dayOfYear() - 1) % files.length();
+-    auto isRandom = dInfo.fileName().compare("random", Qt::CaseInsensitive) == 0;
+-    if (isRandom)
+-        idx = QRandomGenerator::global()->bounded(0, files.length());
+-    return files[idx].absoluteFilePath();
+-}
+diff --git a/launcher/ui/themes/CatPack.h b/launcher/ui/themes/CatPack.h
+deleted file mode 100644
+index e0e34f8..0000000
+--- a/launcher/ui/themes/CatPack.h
++++ /dev/null
+@@ -1,92 +0,0 @@
+-// SPDX-License-Identifier: GPL-3.0-only
+-/*
+- *  Prism Launcher - Minecraft Launcher
+- *  Copyright (c) 2023 Trial97 <alexandru.tripon97@gmail.com>
+- *
+- *  This program is free software: you can redistribute it and/or modify
+- *  it under the terms of the GNU General Public License as published by
+- *  the Free Software Foundation, version 3.
+- *
+- *  This program is distributed in the hope that it will be useful,
+- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- *  GNU General Public License for more details.
+- *
+- *  You should have received a copy of the GNU General Public License
+- *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+- *
+- * This file incorporates work covered by the following copyright and
+- * permission notice:
+- *
+- *      Copyright 2013-2021 MultiMC Contributors
+- *
+- *      Licensed under the Apache License, Version 2.0 (the "License");
+- *      you may not use this file except in compliance with the License.
+- *      You may obtain a copy of the License at
+- *
+- *          http://www.apache.org/licenses/LICENSE-2.0
+- *
+- *      Unless required by applicable law or agreed to in writing, software
+- *      distributed under the License is distributed on an "AS IS" BASIS,
+- *      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- *      See the License for the specific language governing permissions and
+- *      limitations under the License.
+- */
+-
+-#pragma once
+-
+-#include <QDate>
+-#include <QFileInfo>
+-#include <QList>
+-#include <QString>
+-
+-class CatPack {
+-   public:
+-    virtual ~CatPack() {}
+-    virtual QString id() const = 0;
+-    virtual QString name() const = 0;
+-    virtual QString path() const = 0;
+-};
+-
+-class BasicCatPack : public CatPack {
+-   public:
+-    BasicCatPack(QString id, QString name) : m_id(id), m_name(name) {}
+-    BasicCatPack(QString id) : BasicCatPack(id, id) {}
+-    virtual QString id() const override { return m_id; }
+-    virtual QString name() const override { return m_name; }
+-    virtual QString path() const override;
+-
+-   protected:
+-    QString m_id;
+-    QString m_name;
+-};
+-
+-class FileCatPack : public BasicCatPack {
+-   public:
+-    FileCatPack(QString id, QFileInfo& fileInfo) : BasicCatPack(id), m_path(fileInfo.absoluteFilePath()) {}
+-    FileCatPack(QFileInfo& fileInfo) : FileCatPack(fileInfo.baseName(), fileInfo) {}
+-    virtual QString path() const { return m_path; }
+-
+-   private:
+-    QString m_path;
+-};
+-
+-class JsonCatPack : public BasicCatPack {
+-   public:
+-    struct PartialDate {
+-        int month;
+-        int day;
+-    };
+-    struct Variant {
+-        QString path;
+-        PartialDate startTime;
+-        PartialDate endTime;
+-    };
+-    JsonCatPack(QFileInfo& manifestInfo);
+-    virtual QString path() const override;
+-    QString path(QDate now) const;
+-
+-   private:
+-    QString m_default_path;
+-    QList<Variant> m_variants;
+-};
+diff --git a/launcher/ui/themes/CatPainter.cpp b/launcher/ui/themes/CatPainter.cpp
+deleted file mode 100644
+index a4bda02..0000000
+--- a/launcher/ui/themes/CatPainter.cpp
++++ /dev/null
+@@ -1,67 +0,0 @@
+-// SPDX-License-Identifier: GPL-3.0-only
+-/*
+- *  Prism Launcher - Minecraft Launcher
+- *  Copyright (c) 2025 Trial97 <alexandru.tripon97@gmail.com>
+- *
+- *  This program is free software: you can redistribute it and/or modify
+- *  it under the terms of the GNU General Public License as published by
+- *  the Free Software Foundation, version 3.
+- *
+- *  This program is distributed in the hope that it will be useful,
+- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- *  GNU General Public License for more details.
+- *
+- *  You should have received a copy of the GNU General Public License
+- *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+- */
+-
+-#include "ui/themes/CatPainter.h"
+-#include <QPixmap>
+-#include "Application.h"
+-#include "settings/SettingsObject.h"
+-
+-CatPainter::CatPainter(const QString& path, QObject* parent) : QObject(parent)
+-{
+-    // Attempt to load as a movie
+-    m_movie = new QMovie(path, QByteArray(), this);
+-    if (m_movie->isValid()) {
+-        // Start the animation if it's a valid movie file
+-        connect(m_movie, &QMovie::frameChanged, this, &CatPainter::updateFrame);
+-        m_movie->start();
+-    } else {
+-        // Otherwise, load it as a static image
+-        delete m_movie;
+-        m_movie = nullptr;
+-
+-        m_image = QPixmap(path);
+-    }
+-}
+-
+-void CatPainter::paint(QPainter* painter, const QRect& viewport)
+-{
+-    QPixmap frame = m_image;
+-    if (m_movie && m_movie->isValid()) {
+-        frame = m_movie->currentPixmap();
+-    }
+-
+-    auto fit = APPLICATION->settings()->get("CatFit").toString();
+-    painter->setOpacity(APPLICATION->settings()->get("CatOpacity").toFloat() / 100);
+-    int widWidth = viewport.width();
+-    int widHeight = viewport.height();
+-    auto aspectMode = Qt::IgnoreAspectRatio;
+-    if (fit == "fill") {
+-        aspectMode = Qt::KeepAspectRatio;
+-    } else if (fit == "fit") {
+-        aspectMode = Qt::KeepAspectRatio;
+-        if (frame.width() < widWidth)
+-            widWidth = frame.width();
+-        if (frame.height() < widHeight)
+-            widHeight = frame.height();
+-    }
+-    auto pixmap = frame.scaled(widWidth, widHeight, aspectMode, Qt::SmoothTransformation);
+-    QRect rectOfPixmap = pixmap.rect();
+-    rectOfPixmap.moveBottomRight(viewport.bottomRight());
+-    painter->drawPixmap(rectOfPixmap.topLeft(), pixmap);
+-    painter->setOpacity(1.0);
+-};
+diff --git a/launcher/ui/themes/CatPainter.h b/launcher/ui/themes/CatPainter.h
+deleted file mode 100644
+index c36cb76..0000000
+--- a/launcher/ui/themes/CatPainter.h
++++ /dev/null
+@@ -1,39 +0,0 @@
+-// SPDX-License-Identifier: GPL-3.0-only
+-/*
+- *  Prism Launcher - Minecraft Launcher
+- *  Copyright (c) 2025 Trial97 <alexandru.tripon97@gmail.com>
+- *
+- *  This program is free software: you can redistribute it and/or modify
+- *  it under the terms of the GNU General Public License as published by
+- *  the Free Software Foundation, version 3.
+- *
+- *  This program is distributed in the hope that it will be useful,
+- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- *  GNU General Public License for more details.
+- *
+- *  You should have received a copy of the GNU General Public License
+- *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+- */
+-
+-#pragma once
+-
+-#include <QMovie>
+-#include <QPainter>
+-#include <QPixmap>
+-#include <QString>
+-
+-class CatPainter : public QObject {
+-    Q_OBJECT
+-   public:
+-    CatPainter(const QString& path, QObject* parent = nullptr);
+-    virtual ~CatPainter() = default;
+-    void paint(QPainter*, const QRect&);
+-
+-   signals:
+-    void updateFrame();
+-
+-   private:
+-    QMovie* m_movie = nullptr;
+-    QPixmap m_image;
+-};
+diff --git a/launcher/ui/themes/ThemeManager.cpp b/launcher/ui/themes/ThemeManager.cpp
+index 8947896..04a2a26 100644
+--- a/launcher/ui/themes/ThemeManager.cpp
++++ b/launcher/ui/themes/ThemeManager.cpp
+@@ -26,8 +26,8 @@
+ #include <QStyle>
+ #include <QStyleFactory>
+ #include "Exception.h"
++#include "ui/themes/AuroraTheme.h"
+ #include "ui/themes/BrightTheme.h"
+-#include "ui/themes/CatPack.h"
+ #include "ui/themes/CustomTheme.h"
+ #include "ui/themes/DarkTheme.h"
+ #include "ui/themes/SystemTheme.h"
+@@ -48,7 +48,6 @@ ThemeManager::ThemeManager()
+     m_defaultPalette = QApplication::palette();
+ 
+     initializeThemes();
+-    initializeCatPacks();
+ }
+ 
+ ThemeManager::~ThemeManager()
+@@ -135,8 +134,9 @@ void ThemeManager::initializeWidgets()
+ {
+     themeDebugLog() << "<> Initializing Widget Themes";
+     themeDebugLog() << "Loading Built-in Theme:" << addTheme(std::make_unique<SystemTheme>(m_defaultStyle, m_defaultPalette, true));
+-    auto darkThemeId = addTheme(std::make_unique<DarkTheme>());
+-    themeDebugLog() << "Loading Built-in Theme:" << darkThemeId;
++    themeDebugLog() << "Loading Built-in Theme:" << addTheme(std::make_unique<DarkTheme>());
++    auto auroraThemeId = addTheme(std::make_unique<AuroraTheme>());
++    themeDebugLog() << "Loading Built-in Theme:" << auroraThemeId;
+     themeDebugLog() << "Loading Built-in Theme:" << addTheme(std::make_unique<BrightTheme>());
+ 
+     themeDebugLog() << "<> Initializing System Widget Themes";
+@@ -164,7 +164,7 @@ void ThemeManager::initializeWidgets()
+         if (themeJson.exists()) {
+             // Load "theme.json" based themes
+             themeDebugLog() << "Loading JSON Theme from:" << themeJson.absoluteFilePath();
+-            addTheme(std::make_unique<CustomTheme>(getTheme(darkThemeId), themeJson, true));
++            addTheme(std::make_unique<CustomTheme>(getTheme(auroraThemeId), themeJson, true));
+         } else {
+             // Load pure QSS Themes
+             QDirIterator stylesheetFileIterator(dir.absoluteFilePath(""), { "*.qss", "*.css" }, QDir::Files);
+@@ -172,7 +172,7 @@ void ThemeManager::initializeWidgets()
+                 QFile customThemeFile(stylesheetFileIterator.next());
+                 QFileInfo customThemeFileInfo(customThemeFile);
+                 themeDebugLog() << "Loading QSS Theme from:" << customThemeFileInfo.absoluteFilePath();
+-                addTheme(std::make_unique<CustomTheme>(getTheme(darkThemeId), customThemeFileInfo, false));
++                addTheme(std::make_unique<CustomTheme>(getTheme(auroraThemeId), customThemeFileInfo, false));
+             }
+         }
+     }
+@@ -206,15 +206,6 @@ QList<ITheme*> ThemeManager::getValidApplicationThemes()
+     return ret;
+ }
+ 
+-QList<CatPack*> ThemeManager::getValidCatPacks()
+-{
+-    QList<CatPack*> ret;
+-    ret.reserve(m_catPacks.size());
+-    for (auto&& [id, theme] : m_catPacks) {
+-        ret.append(theme.get());
+-    }
+-    return ret;
+-}
+ 
+ bool ThemeManager::isValidIconTheme(const QString& id)
+ {
+@@ -236,10 +227,6 @@ QDir ThemeManager::getApplicationThemesFolder()
+     return m_applicationThemeFolder;
+ }
+ 
+-QDir ThemeManager::getCatPacksFolder()
+-{
+-    return m_catPacksFolder;
+-}
+ 
+ void ThemeManager::setIconTheme(const QString& name)
+ {
+@@ -273,84 +260,15 @@ void ThemeManager::applyCurrentlySelectedTheme(bool initial)
+     setIconTheme(settings->get("IconTheme").toString());
+     themeDebugLog() << "<> Icon theme set.";
+     auto applicationTheme = settings->get("ApplicationTheme").toString();
+-    if (applicationTheme == "") {
+-        applicationTheme = m_defaultStyle;
++    if (applicationTheme.isEmpty() || !isValidApplicationTheme(applicationTheme)) {
++        applicationTheme = QStringLiteral("aurora");
+     }
+     setApplicationTheme(applicationTheme, initial);
+     themeDebugLog() << "<> Application theme set.";
+ }
+ 
+-QString ThemeManager::getCatPack(QString catName)
+-{
+-    auto catIter = m_catPacks.find(!catName.isEmpty() ? catName : APPLICATION->settings()->get("BackgroundCat").toString());
+-    if (catIter != m_catPacks.end()) {
+-        auto& catPack = catIter->second;
+-        themeDebugLog() << "applying catpack" << catPack->id();
+-        return catPack->path();
+-    } else {
+-        themeWarningLog() << "Tried to get invalid catPack:" << catName;
+-    }
+-
+-    return m_catPacks.begin()->second->path();
+-}
+-
+-QString ThemeManager::addCatPack(std::unique_ptr<CatPack> catPack)
+-{
+-    QString id = catPack->id();
+-    if (m_catPacks.find(id) == m_catPacks.end())
+-        m_catPacks.emplace(id, std::move(catPack));
+-    else
+-        themeWarningLog() << "CatPack(" << id << ") not added to prevent id duplication";
+-    return id;
+-}
+-
+-void ThemeManager::initializeCatPacks()
+-{
+-    QList<std::pair<QString, QString>> defaultCats{ { "kitteh", QObject::tr("Background Cat (from MultiMC)") },
+-                                                    { "rory", QObject::tr("Rory ID 11 (drawn by Ashtaka)") },
+-                                                    { "rory-flat", QObject::tr("Rory ID 11 (flat edition, drawn by Ashtaka)") },
+-                                                    { "teawie", QObject::tr("Teawie (drawn by SympathyTea)") } };
+-    for (auto [id, name] : defaultCats) {
+-        addCatPack(std::unique_ptr<CatPack>(new BasicCatPack(id, name)));
+-    }
+-    if (!m_catPacksFolder.mkpath("."))
+-        themeWarningLog() << "Couldn't create catpacks folder";
+-    themeDebugLog() << "CatPacks Folder Path:" << m_catPacksFolder.absolutePath();
+-
+-    QStringList supportedImageFormats;
+-    for (auto format : QImageReader::supportedImageFormats()) {
+-        supportedImageFormats.append("*." + format);
+-    }
+-    auto loadFiles = [this, supportedImageFormats](QDir dir) {
+-        // Load image files directly
+-        QDirIterator ImageFileIterator(dir.absoluteFilePath(""), supportedImageFormats, QDir::Files);
+-        while (ImageFileIterator.hasNext()) {
+-            QFile customCatFile(ImageFileIterator.next());
+-            QFileInfo customCatFileInfo(customCatFile);
+-            themeDebugLog() << "Loading CatPack from:" << customCatFileInfo.absoluteFilePath();
+-            addCatPack(std::unique_ptr<CatPack>(new FileCatPack(customCatFileInfo)));
+-        }
+-    };
+ 
+-    loadFiles(m_catPacksFolder);
+ 
+-    QDirIterator directoryIterator(m_catPacksFolder.path(), QDir::Dirs | QDir::NoDotAndDotDot);
+-    while (directoryIterator.hasNext()) {
+-        QDir dir(directoryIterator.next());
+-        QFileInfo manifest(dir.absoluteFilePath("catpack.json"));
+-        if (manifest.isFile()) {
+-            try {
+-                // Load background manifest
+-                themeDebugLog() << "Loading background manifest from:" << manifest.absoluteFilePath();
+-                addCatPack(std::unique_ptr<CatPack>(new JsonCatPack(manifest)));
+-            } catch (const Exception& e) {
+-                themeWarningLog() << "Couldn't load catpack json:" << e.cause();
+-            }
+-        } else {
+-            loadFiles(dir);
+-        }
+-    }
+-}
+ 
+ void ThemeManager::refresh()
+ {
+@@ -359,5 +277,4 @@ void ThemeManager::refresh()
+     m_catPacks.clear();
+ 
+     initializeThemes();
+-    initializeCatPacks();
+ }
+diff --git a/launcher/ui/themes/ThemeManager.h b/launcher/ui/themes/ThemeManager.h
+index fe0fea9..2a18194 100644
+--- a/launcher/ui/themes/ThemeManager.h
++++ b/launcher/ui/themes/ThemeManager.h
+@@ -24,7 +24,6 @@
+ #include <memory>
+ 
+ #include "IconTheme.h"
+-#include "ui/themes/CatPack.h"
+ #include "ui/themes/ITheme.h"
+ 
+ inline auto themeDebugLog() {
+@@ -45,17 +44,10 @@ class ThemeManager {
+     bool isValidApplicationTheme(const QString& id);
+     QDir getIconThemesFolder();
+     QDir getApplicationThemesFolder();
+-    QDir getCatPacksFolder();
+     void applyCurrentlySelectedTheme(bool initial = false);
+     void setIconTheme(const QString& name);
+     void setApplicationTheme(const QString& name, bool initial = false);
+ 
+-    /// @brief Returns the background based on selected and with events (Birthday, XMas, etc.)
+-    /// @param catName Optional, if you need a specific background.
+-    /// @return
+-    QString getCatPack(QString catName = "");
+-    QList<CatPack*> getValidCatPacks();
+-
+     const LogColors& getLogColors() { return m_logColors; }
+ 
+     void refresh();
+@@ -65,18 +57,14 @@ class ThemeManager {
+     std::map<QString, IconTheme> m_icons;
+     QDir m_iconThemeFolder{"iconthemes"};
+     QDir m_applicationThemeFolder{"themes"};
+-    QDir m_catPacksFolder{"catpacks"};
+-    std::map<QString, std::unique_ptr<CatPack>> m_catPacks;
+     QPalette m_defaultPalette;
+     QString m_defaultStyle;
+     LogColors m_logColors;
+ 
+     void initializeThemes();
+-    void initializeCatPacks();
+     QString addTheme(std::unique_ptr<ITheme> theme);
+     ITheme* getTheme(QString themeId);
+     QString addIconTheme(IconTheme theme);
+-    QString addCatPack(std::unique_ptr<CatPack> catPack);
+     void initializeIcons();
+     void initializeWidgets();
+ 
+diff --git a/launcher/ui/widgets/AppearanceWidget.cpp b/launcher/ui/widgets/AppearanceWidget.cpp
+index 41a80dc..1358c54 100644
+--- a/launcher/ui/widgets/AppearanceWidget.cpp
++++ b/launcher/ui/widgets/AppearanceWidget.cpp
+@@ -38,7 +38,6 @@
+ #include "ui_AppearanceWidget.h"
+ 
+ #include <DesktopServices.h>
+-#include <QGraphicsOpacityEffect>
+ #include "BuildConfig.h"
+ #include "ui/themes/ITheme.h"
+ #include "ui/themes/ThemeManager.h"
+@@ -51,24 +50,17 @@ AppearanceWidget::AppearanceWidget(bool themesOnly, QWidget* parent)
+ {
+     m_ui->setupUi(this);
+ 
+-    m_ui->catPreview->setGraphicsEffect(new QGraphicsOpacityEffect(this));
+-
+     m_defaultFormat = QTextCharFormat(m_ui->consolePreview->currentCharFormat());
+ 
+     if (themesOnly) {
+-        m_ui->catPackLabel->hide();
+-        m_ui->catPackComboBox->hide();
+-        m_ui->catPackFolder->hide();
+         m_ui->settingsBox->hide();
+-        m_ui->consolePreview->hide();
+-        m_ui->catPreview->hide();
++        m_ui->previewBox->hide();
+         loadThemeSettings();
+     } else {
+         loadSettings();
+         loadThemeSettings();
+ 
+         updateConsolePreview();
+-        updateCatPreview();
+     }
+ 
+     connect(m_ui->fontSizeBox, &QSpinBox::valueChanged, this, &AppearanceWidget::updateConsolePreview);
+@@ -76,15 +68,11 @@ AppearanceWidget::AppearanceWidget(bool themesOnly, QWidget* parent)
+ 
+     connect(m_ui->iconsComboBox, &QComboBox::currentIndexChanged, this, &AppearanceWidget::applyIconTheme);
+     connect(m_ui->widgetStyleComboBox, &QComboBox::currentIndexChanged, this, &AppearanceWidget::applyWidgetTheme);
+-    connect(m_ui->catPackComboBox, &QComboBox::currentIndexChanged, this, &AppearanceWidget::applyCatTheme);
+-    connect(m_ui->catOpacitySlider, &QAbstractSlider::valueChanged, this, &AppearanceWidget::updateCatPreview);
+ 
+     connect(m_ui->iconsFolder, &QPushButton::clicked, this,
+             [] { DesktopServices::openPath(APPLICATION->themeManager()->getIconThemesFolder().path()); });
+     connect(m_ui->widgetStyleFolder, &QPushButton::clicked, this,
+             [] { DesktopServices::openPath(APPLICATION->themeManager()->getApplicationThemesFolder().path()); });
+-    connect(m_ui->catPackFolder, &QPushButton::clicked, this,
+-            [] { DesktopServices::openPath(APPLICATION->themeManager()->getCatPacksFolder().path()); });
+     connect(m_ui->reloadThemesButton, &QPushButton::pressed, this, &AppearanceWidget::loadThemeSettings);
+ }
+ 
+@@ -99,9 +87,6 @@ void AppearanceWidget::applySettings()
+     QString consoleFontFamily = m_ui->consoleFont->currentFont().family();
+     settings->set("ConsoleFont", consoleFontFamily);
+     settings->set("ConsoleFontSize", m_ui->fontSizeBox->value());
+-    settings->set("CatOpacity", m_ui->catOpacitySlider->value());
+-    auto catFit = m_ui->catFitComboBox->currentIndex();
+-    settings->set("CatFit", catFit == 0 ? "fit" : catFit == 1 ? "fill" : "strech");
+ }
+ 
+ void AppearanceWidget::loadSettings()
+@@ -117,11 +102,6 @@ void AppearanceWidget::loadSettings()
+         fontSize = 11;
+     }
+     m_ui->fontSizeBox->setValue(fontSize);
+-
+-    m_ui->catOpacitySlider->setValue(settings->get("CatOpacity").toInt());
+-
+-    auto catFit = settings->get("CatFit").toString();
+-    m_ui->catFitComboBox->setCurrentIndex(catFit == "fit" ? 0 : catFit == "fill" ? 1 : 2);
+ }
+ 
+ void AppearanceWidget::retranslateUi()
+@@ -153,18 +133,6 @@ void AppearanceWidget::applyWidgetTheme(int index)
+     updateConsolePreview();
+ }
+ 
+-void AppearanceWidget::applyCatTheme(int index)
+-{
+-    auto settings = APPLICATION->settings();
+-    auto originalCat = settings->get("BackgroundCat").toString();
+-    auto newCat = m_ui->catPackComboBox->itemData(index).toString();
+-    if (originalCat != newCat) {
+-        settings->set("BackgroundCat", newCat);
+-    }
+-
+-    APPLICATION->currentCatChanged(index);
+-    updateCatPreview();
+-}
+ 
+ void AppearanceWidget::loadThemeSettings()
+ {
+@@ -172,11 +140,9 @@ void AppearanceWidget::loadThemeSettings()
+ 
+     m_ui->iconsComboBox->blockSignals(true);
+     m_ui->widgetStyleComboBox->blockSignals(true);
+-    m_ui->catPackComboBox->blockSignals(true);
+ 
+     m_ui->iconsComboBox->clear();
+     m_ui->widgetStyleComboBox->clear();
+-    m_ui->catPackComboBox->clear();
+ 
+     SettingsObject* settings = APPLICATION->settings();
+ 
+@@ -207,23 +173,8 @@ void AppearanceWidget::loadThemeSettings()
+             m_ui->widgetStyleComboBox->setCurrentIndex(i);
+     }
+ 
+-    if (!m_themesOnly) {
+-        const QString currentCat = settings->get("BackgroundCat").toString();
+-        const auto cats = APPLICATION->themeManager()->getValidCatPacks();
+-        for (int i = 0; i < cats.count(); ++i) {
+-            const CatPack* cat = cats[i];
+-
+-            QIcon catIcon = QIcon(QString("%1").arg(cat->path()));
+-            m_ui->catPackComboBox->addItem(catIcon, cat->name(), cat->id());
+-
+-            if (currentCat == cat->id())
+-                m_ui->catPackComboBox->setCurrentIndex(i);
+-        }
+-    }
+-
+     m_ui->iconsComboBox->blockSignals(false);
+     m_ui->widgetStyleComboBox->blockSignals(false);
+-    m_ui->catPackComboBox->blockSignals(false);
+ }
+ 
+ void AppearanceWidget::updateConsolePreview()
+@@ -269,12 +220,3 @@ void AppearanceWidget::updateConsolePreview()
+     print(tr("[FATAL] A terrifying fatal error!"), MessageLevel::Fatal);
+ }
+ 
+-void AppearanceWidget::updateCatPreview()
+-{
+-    QIcon catPackIcon(APPLICATION->themeManager()->getCatPack());
+-    m_ui->catPreview->setIcon(catPackIcon);
+-
+-    auto effect = dynamic_cast<QGraphicsOpacityEffect*>(m_ui->catPreview->graphicsEffect());
+-    if (effect)
+-        effect->setOpacity(m_ui->catOpacitySlider->value() / 100.0);
+-}
+diff --git a/launcher/ui/widgets/AppearanceWidget.h b/launcher/ui/widgets/AppearanceWidget.h
+index a63c531..de0c3f8 100644
+--- a/launcher/ui/widgets/AppearanceWidget.h
++++ b/launcher/ui/widgets/AppearanceWidget.h
+@@ -46,11 +46,9 @@ class AppearanceWidget : public QWidget {
+    private:
+     void applyIconTheme(int index);
+     void applyWidgetTheme(int index);
+-    void applyCatTheme(int index);
+     void loadThemeSettings();
+ 
+     void updateConsolePreview();
+-    void updateCatPreview();
+ 
+     Ui::AppearanceWidget* m_ui;
+     QTextCharFormat m_defaultFormat;
+diff --git a/launcher/ui/widgets/AppearanceWidget.ui b/launcher/ui/widgets/AppearanceWidget.ui
+index f74ab64..14fd19a 100644
+--- a/launcher/ui/widgets/AppearanceWidget.ui
++++ b/launcher/ui/widgets/AppearanceWidget.ui
+@@ -1,4 +1,4 @@
+-<?xml version="1.0" encoding="UTF-8"?>
++<?xml version='1.0' encoding='UTF-8'?>
+ <ui version="4.0">
+  <class>AppearanceWidget</class>
+  <widget class="QWidget" name="AppearanceWidget">
+@@ -20,7 +20,7 @@
+    <item>
+     <widget class="QGroupBox" name="themingBox">
+      <property name="title">
+-      <string/>
++      <string />
+      </property>
+      <property name="flat">
+       <bool>false</bool>
+@@ -28,16 +28,6 @@
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <layout class="QGridLayout" name="gridLayout">
+-        <item row="2" column="3">
+-         <widget class="QPushButton" name="catPackFolder">
+-          <property name="toolTip">
+-           <string>View cat packs folder.</string>
+-          </property>
+-          <property name="text">
+-           <string>Open Folder</string>
+-          </property>
+-         </widget>
+-        </item>
+         <item row="0" column="3">
+          <widget class="QPushButton" name="widgetStyleFolder">
+           <property name="toolTip">
+@@ -58,19 +48,6 @@
+           </property>
+          </widget>
+         </item>
+-        <item row="2" column="0">
+-         <widget class="QLabel" name="catPackLabel">
+-          <property name="text">
+-           <string>&amp;Cat Pack:</string>
+-          </property>
+-          <property name="buddy">
+-           <cstring>catPackComboBox</cstring>
+-          </property>
+-         </widget>
+-        </item>
+-        <item row="2" column="2">
+-         <widget class="QComboBox" name="catPackComboBox"/>
+-        </item>
+         <item row="1" column="2">
+          <widget class="QComboBox" name="iconsComboBox">
+           <property name="sizePolicy">
+@@ -138,7 +115,7 @@
+    <item>
+     <widget class="QGroupBox" name="settingsBox">
+      <property name="title">
+-      <string/>
++      <string />
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_5">
+       <item>
+@@ -151,7 +128,7 @@
+          </widget>
+         </item>
+         <item>
+-         <widget class="QFontComboBox" name="consoleFont"/>
++         <widget class="QFontComboBox" name="consoleFont" />
+         </item>
+         <item>
+          <widget class="QSpinBox" name="fontSizeBox">
+@@ -203,37 +180,6 @@
+         </property>
+        </spacer>
+       </item>
+-      <item>
+-       <widget class="QLabel" name="catOpacityLabel">
+-        <property name="text">
+-         <string>Cat Opacity</string>
+-        </property>
+-       </widget>
+-      </item>
+-      <item>
+-       <widget class="QWidget" name="widget_2" native="true">
+-        <property name="maximumSize">
+-         <size>
+-          <width>300</width>
+-          <height>16777215</height>
+-         </size>
+-        </property>
+-        <layout class="QHBoxLayout" name="horizontalLayout_2">
+-         <property name="leftMargin">
+-          <number>0</number>
+-         </property>
+-         <property name="topMargin">
+-          <number>0</number>
+-         </property>
+-         <property name="rightMargin">
+-          <number>0</number>
+-         </property>
+-         <property name="bottomMargin">
+-          <number>0</number>
+-         </property>
+-        </layout>
+-       </widget>
+-      </item>
+       <item>
+        <widget class="QWidget" name="widget" native="true">
+         <property name="maximumSize">
+@@ -323,54 +269,7 @@
+         </property>
+        </spacer>
+       </item>
+-      <item>
+-       <widget class="QLabel" name="catFitLabel">
+-        <property name="sizePolicy">
+-         <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+-          <horstretch>0</horstretch>
+-          <verstretch>0</verstretch>
+-         </sizepolicy>
+-        </property>
+-        <property name="text">
+-         <string>Cat Scaling</string>
+-        </property>
+-       </widget>
+-      </item>
+-      <item>
+-       <widget class="QComboBox" name="catFitComboBox">
+-        <property name="sizePolicy">
+-         <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+-          <horstretch>0</horstretch>
+-          <verstretch>0</verstretch>
+-         </sizepolicy>
+-        </property>
+-        <property name="sizeHint" stdset="0">
+-         <size>
+-          <width>81</width>
+-          <height>32</height>
+-         </size>
+-        </property>
+-        <property name="currentIndex">
+-         <number>0</number>
+-        </property>
+-        <item>
+-         <property name="text">
+-          <string>Fit</string>
+-         </property>
+-        </item>
+-        <item>
+-         <property name="text">
+-          <string>Fill</string>
+-         </property>
+-        </item>
+-        <item>
+-         <property name="text">
+-          <string>Stretch</string>
+-         </property>
+-        </item>
+-       </widget>
+-      </item>
+-     </layout>
++      </layout>
+     </widget>
+    </item>
+    <item>
+@@ -381,31 +280,6 @@
+      <layout class="QVBoxLayout" name="verticalLayout_3">
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_3">
+-        <item>
+-         <widget class="QPushButton" name="catPreview">
+-          <property name="sizePolicy">
+-           <sizepolicy hsizetype="Fixed" vsizetype="Minimum">
+-            <horstretch>0</horstretch>
+-            <verstretch>0</verstretch>
+-           </sizepolicy>
+-          </property>
+-          <property name="focusPolicy">
+-           <enum>Qt::FocusPolicy::NoFocus</enum>
+-          </property>
+-          <property name="text">
+-           <string/>
+-          </property>
+-          <property name="iconSize">
+-           <size>
+-            <width>64</width>
+-            <height>128</height>
+-           </size>
+-          </property>
+-          <property name="flat">
+-           <bool>true</bool>
+-          </property>
+-         </widget>
+-        </item>
+         <item>
+          <layout class="QVBoxLayout" name="verticalLayout_4">
+           <item>
+@@ -416,10 +290,10 @@
+                <enum>Qt::FocusPolicy::NoFocus</enum>
+               </property>
+               <property name="text">
+-               <string/>
++               <string />
+               </property>
+               <property name="icon">
+-               <iconset theme="new"/>
++               <iconset theme="new" />
+               </property>
+               <property name="flat">
+                <bool>true</bool>
+@@ -432,10 +306,10 @@
+                <enum>Qt::FocusPolicy::NoFocus</enum>
+               </property>
+               <property name="text">
+-               <string/>
++               <string />
+               </property>
+               <property name="icon">
+-               <iconset theme="centralmods"/>
++               <iconset theme="centralmods" />
+               </property>
+               <property name="flat">
+                <bool>true</bool>
+@@ -448,10 +322,10 @@
+                <enum>Qt::FocusPolicy::NoFocus</enum>
+               </property>
+               <property name="text">
+-               <string/>
++               <string />
+               </property>
+               <property name="icon">
+-               <iconset theme="viewfolder"/>
++               <iconset theme="viewfolder" />
+               </property>
+               <property name="flat">
+                <bool>true</bool>
+@@ -464,10 +338,10 @@
+                <enum>Qt::FocusPolicy::NoFocus</enum>
+               </property>
+               <property name="text">
+-               <string/>
++               <string />
+               </property>
+               <property name="icon">
+-               <iconset theme="launch"/>
++               <iconset theme="launch" />
+               </property>
+               <property name="flat">
+                <bool>true</bool>
+@@ -480,10 +354,10 @@
+                <enum>Qt::FocusPolicy::NoFocus</enum>
+               </property>
+               <property name="text">
+-               <string/>
++               <string />
+               </property>
+               <property name="icon">
+-               <iconset theme="copy"/>
++               <iconset theme="copy" />
+               </property>
+               <property name="flat">
+                <bool>true</bool>
+@@ -496,10 +370,10 @@
+                <enum>Qt::FocusPolicy::NoFocus</enum>
+               </property>
+               <property name="text">
+-               <string/>
++               <string />
+               </property>
+               <property name="icon">
+-               <iconset theme="export"/>
++               <iconset theme="export" />
+               </property>
+               <property name="flat">
+                <bool>true</bool>
+@@ -512,10 +386,10 @@
+                <enum>Qt::FocusPolicy::NoFocus</enum>
+               </property>
+               <property name="text">
+-               <string/>
++               <string />
+               </property>
+               <property name="icon">
+-               <iconset theme="delete"/>
++               <iconset theme="delete" />
+               </property>
+               <property name="flat">
+                <bool>true</bool>
+@@ -528,10 +402,10 @@
+                <enum>Qt::FocusPolicy::NoFocus</enum>
+               </property>
+               <property name="text">
+-               <string/>
++               <string />
+               </property>
+               <property name="icon">
+-               <iconset theme="about"/>
++               <iconset theme="about" />
+               </property>
+               <property name="flat">
+                <bool>true</bool>
+@@ -544,10 +418,10 @@
+                <enum>Qt::FocusPolicy::NoFocus</enum>
+               </property>
+               <property name="text">
+-               <string/>
++               <string />
+               </property>
+               <property name="icon">
+-               <iconset theme="settings"/>
++               <iconset theme="settings" />
+               </property>
+               <property name="flat">
+                <bool>true</bool>
+@@ -560,10 +434,10 @@
+                <enum>Qt::FocusPolicy::NoFocus</enum>
+               </property>
+               <property name="text">
+-               <string/>
++               <string />
+               </property>
+               <property name="icon">
+-               <iconset theme="cat"/>
++               <iconset theme="applications-system"/>
+               </property>
+               <property name="flat">
+                <bool>true</bool>
+@@ -618,15 +492,11 @@
+   <tabstop>widgetStyleFolder</tabstop>
+   <tabstop>iconsComboBox</tabstop>
+   <tabstop>iconsFolder</tabstop>
+-  <tabstop>catPackComboBox</tabstop>
+-  <tabstop>catPackFolder</tabstop>
+   <tabstop>reloadThemesButton</tabstop>
+   <tabstop>consoleFont</tabstop>
+   <tabstop>fontSizeBox</tabstop>
+-  <tabstop>catFitComboBox</tabstop>
+-  <tabstop>catOpacitySlider</tabstop>
+   <tabstop>consolePreview</tabstop>
+  </tabstops>
+- <resources/>
+- <connections/>
+-</ui>
++ <resources />
++ <connections />
++</ui>
+\ No newline at end of file
+diff --git a/launcher/ui/widgets/HomeSurface.cpp b/launcher/ui/widgets/HomeSurface.cpp
+new file mode 100644
+index 0000000..b405a0c
+--- /dev/null
++++ b/launcher/ui/widgets/HomeSurface.cpp
+@@ -0,0 +1,248 @@
++// SPDX-License-Identifier: GPL-3.0-only
++/*
++ *  Prism Launcher - Minecraft Launcher
++ *  Copyright (C) 2026 Prism Launcher contributors
++ *
++ *  This program is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, version 3.
++ *
++ *  This program is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
++ */
++
++#include "HomeSurface.h"
++
++#include <QAbstractScrollArea>
++#include <QEvent>
++#include <QFont>
++#include <QFrame>
++#include <QHBoxLayout>
++#include <QIcon>
++#include <QLabel>
++#include <QLineEdit>
++#include <QPushButton>
++#include <QResizeEvent>
++#include <QToolButton>
++#include <QVBoxLayout>
++
++#include "NightSkyBackground.h"
++
++HomeSurface::HomeSurface(QWidget* parent) : QWidget(parent)
++{
++    setObjectName(QStringLiteral("homeSurface"));
++
++    m_background = new NightSkyBackground(this);
++    m_background->setObjectName(QStringLiteral("homeBackground"));
++
++    auto* root = new QVBoxLayout(this);
++    root->setContentsMargins(26, 20, 26, 18);
++    root->setSpacing(16);
++
++    // ---- header -------------------------------------------------------
++    m_hero = new QWidget(this);
++    m_hero->setObjectName(QStringLiteral("homeHeader"));
++    auto* heroLayout = new QHBoxLayout(m_hero);
++    heroLayout->setContentsMargins(0, 0, 0, 0);
++    heroLayout->setSpacing(12);
++
++    auto* titles = new QVBoxLayout();
++    titles->setContentsMargins(0, 0, 0, 0);
++    titles->setSpacing(2);
++
++    m_title = new QLabel(tr("Instances"), m_hero);
++    m_title->setObjectName(QStringLiteral("homeTitle"));
++    m_subtitle = new QLabel(tr("No instances yet"), m_hero);
++    m_subtitle->setObjectName(QStringLiteral("homeSubtitle"));
++
++    titles->addWidget(m_title);
++    titles->addWidget(m_subtitle);
++    heroLayout->addLayout(titles);
++    heroLayout->addStretch(1);
++
++    m_search = new QLineEdit(m_hero);
++    m_search->setObjectName(QStringLiteral("homeSearch"));
++    m_search->setPlaceholderText(tr("Search instances"));
++    m_search->setClearButtonEnabled(true);
++    m_search->setFixedWidth(220);
++    m_search->setToolTip(tr("Filter the instance list by name"));
++    heroLayout->addWidget(m_search);
++
++    m_account = new QToolButton(m_hero);
++    m_account->setObjectName(QStringLiteral("homeAccount"));
++    m_account->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
++    m_account->setText(tr("Accounts"));
++    m_account->setIcon(QIcon::fromTheme(QStringLiteral("noaccount")));
++    m_account->setIconSize(QSize(18, 18));
++    m_account->setToolTip(tr("Manage accounts"));
++    m_account->setCursor(Qt::PointingHandCursor);
++    heroLayout->addWidget(m_account);
++
++    m_add = new QPushButton(tr("Add Instance"), m_hero);
++    m_add->setObjectName(QStringLiteral("homeAdd"));
++    m_add->setIcon(QIcon::fromTheme(QStringLiteral("new")));
++    m_add->setToolTip(tr("Create a new instance"));
++    m_add->setCursor(Qt::PointingHandCursor);
++    heroLayout->addWidget(m_add);
++
++    m_settings = new QToolButton(m_hero);
++    m_settings->setObjectName(QStringLiteral("homeSettings"));
++    m_settings->setIcon(QIcon::fromTheme(QStringLiteral("settings")));
++    m_settings->setIconSize(QSize(18, 18));
++    // An icon-only button collapses to zero width when the icon theme is
++    // missing an entry, so keep a clickable floor.
++    m_settings->setMinimumSize(34, 34);
++    m_settings->setToolTip(tr("Settings"));
++    m_settings->setCursor(Qt::PointingHandCursor);
++    heroLayout->addWidget(m_settings);
++
++    root->addWidget(m_hero);
++
++    // ---- card area ----------------------------------------------------
++    m_cardsHost = new QWidget(this);
++    m_cardsHost->setObjectName(QStringLiteral("homeCards"));
++    m_cardsLayout = new QVBoxLayout(m_cardsHost);
++    m_cardsLayout->setContentsMargins(0, 0, 0, 0);
++    m_cardsLayout->setSpacing(0);
++    root->addWidget(m_cardsHost, 1);
++
++    m_search->setMinimumHeight(32);
++    m_account->setMinimumHeight(32);
++    m_add->setMinimumHeight(32);
++    m_add->setMinimumWidth(130);
++    polishSelf();
++
++    connect(m_search, &QLineEdit::textChanged, this, &HomeSurface::searchChanged);
++    connect(m_add, &QPushButton::clicked, this, &HomeSurface::addInstanceRequested);
++    connect(m_account, &QToolButton::clicked, this, &HomeSurface::accountsRequested);
++    connect(m_settings, &QToolButton::clicked, this, &HomeSurface::settingsRequested);
++}
++
++void HomeSurface::setContent(QWidget* content)
++{
++    if (!content)
++        return;
++
++    content->setParent(m_cardsHost);
++    m_cardsLayout->addWidget(content);
++
++    // Let the animated backdrop show through around and between the cards. The
++    // selectors are scoped on purpose: a bare "background: transparent" would
++    // cascade into the view's scrollbars and scroll-area frame.
++    content->setObjectName(QStringLiteral("homeContent"));
++    if (auto* area = qobject_cast<QAbstractScrollArea*>(content)) {
++        area->setFrameShape(QFrame::NoFrame);
++        area->setAttribute(Qt::WA_NoSystemBackground, true);
++        if (auto* viewport = area->viewport()) {
++            viewport->setObjectName(QStringLiteral("qt_scrollarea_viewport"));
++            viewport->setAutoFillBackground(false);
++            viewport->setAttribute(Qt::WA_NoSystemBackground, true);
++        }
++    }
++    content->setStyleSheet(QStringLiteral("QAbstractScrollArea#homeContent, QWidget#qt_scrollarea_viewport {"
++                                          " background: transparent; border: none; }"));
++}
++
++void HomeSurface::setSummary(int instanceCount, const QString& playtime)
++{
++    m_instanceCount = instanceCount;
++    m_playtime = playtime;
++
++    QString instances = instanceCount == 1 ? tr("1 instance") : tr("%1 instances").arg(instanceCount);
++    if (playtime.isEmpty())
++        m_subtitle->setText(instances);
++    else
++        m_subtitle->setText(tr("%1  -  %2").arg(instances, playtime));
++}
++
++void HomeSurface::setAccount(const QString& name, const QIcon& icon)
++{
++    m_accountName = name;
++    m_account->setText(name.isEmpty() ? tr("Accounts") : name);
++    m_account->setIcon(icon.isNull() ? QIcon::fromTheme(QStringLiteral("noaccount")) : icon);
++}
++
++void HomeSurface::setBackgroundAnimated(bool animated)
++{
++    m_background->setAnimated(animated);
++}
++
++bool HomeSurface::isBackgroundAnimated() const
++{
++    return m_background->isAnimated();
++}
++
++void HomeSurface::setSearchText(const QString& text)
++{
++    m_search->setText(text);
++}
++
++void HomeSurface::retranslateUi()
++{
++    m_title->setText(tr("Instances"));
++    m_search->setPlaceholderText(tr("Search instances"));
++    m_search->setToolTip(tr("Filter the instance list by name"));
++    m_add->setText(tr("Add Instance"));
++    m_add->setToolTip(tr("Create a new instance"));
++    m_account->setToolTip(tr("Manage accounts"));
++    m_settings->setToolTip(tr("Settings"));
++    m_account->setText(m_accountName.isEmpty() ? tr("Accounts") : m_accountName);
++
++    setSummary(m_instanceCount, m_playtime);
++}
++
++void HomeSurface::focusSearch()
++{
++    m_search->setFocus(Qt::ShortcutFocusReason);
++    m_search->selectAll();
++}
++
++void HomeSurface::polishSelf()
++{
++    // Themes without a stylesheet (Bright, for one) get no typography at all, so
++    // the hierarchy has to be built from the palette and fonts instead of QSS.
++    const QPalette pal = palette();
++
++    QFont titleFont = font();
++    titleFont.setPointSizeF(font().pointSizeF() + 7.5);
++    titleFont.setWeight(QFont::DemiBold);
++    m_title->setFont(titleFont);
++
++    QFont subtitleFont = font();
++    subtitleFont.setPointSizeF(qMax(7.0, font().pointSizeF() - 0.5));
++    m_subtitle->setFont(subtitleFont);
++    QPalette subtitlePalette = m_subtitle->palette();
++    QColor muted = pal.color(QPalette::WindowText);
++    muted.setAlpha(170);
++    subtitlePalette.setColor(QPalette::WindowText, muted);
++    m_subtitle->setPalette(subtitlePalette);
++
++    QPalette primary = m_add->palette();
++    primary.setColor(QPalette::Button, pal.color(QPalette::Highlight));
++    primary.setColor(QPalette::ButtonText, pal.color(QPalette::HighlightedText));
++    primary.setColor(QPalette::WindowText, pal.color(QPalette::HighlightedText));
++    m_add->setPalette(primary);
++    m_add->setAutoFillBackground(true);
++}
++
++void HomeSurface::changeEvent(QEvent* event)
++{
++    QWidget::changeEvent(event);
++    if (event->type() == QEvent::PaletteChange || event->type() == QEvent::StyleChange)
++        polishSelf();
++}
++
++void HomeSurface::resizeEvent(QResizeEvent* event)
++{
++    QWidget::resizeEvent(event);
++
++    if (m_background) {
++        m_background->setGeometry(rect());
++        m_background->lower();
++    }
++}
+diff --git a/launcher/ui/widgets/HomeSurface.h b/launcher/ui/widgets/HomeSurface.h
+new file mode 100644
+index 0000000..af82fca
+--- /dev/null
++++ b/launcher/ui/widgets/HomeSurface.h
+@@ -0,0 +1,86 @@
++// SPDX-License-Identifier: GPL-3.0-only
++/*
++ *  Prism Launcher - Minecraft Launcher
++ *  Copyright (C) 2026 Prism Launcher contributors
++ *
++ *  This program is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, version 3.
++ *
++ *  This program is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
++ */
++
++#pragma once
++
++#include <QIcon>
++#include <QWidget>
++
++class QLabel;
++class QLineEdit;
++class QPushButton;
++class QToolButton;
++class QVBoxLayout;
++class QHBoxLayout;
++class NightSkyBackground;
++
++/*!
++ * The launcher's main surface: an animated backdrop, a header with the
++ * instance overview, search and the primary actions, and the instance cards
++ * below it. The instance view itself is supplied by MainWindow so the existing
++ * model, drag and drop and context menu behaviour keeps working unchanged.
++ */
++class HomeSurface : public QWidget {
++    Q_OBJECT
++
++   public:
++    explicit HomeSurface(QWidget* parent = nullptr);
++    ~HomeSurface() override = default;
++
++    /*! Places the instance list in the card area. Takes ownership. */
++    void setContent(QWidget* content);
++
++    void setSummary(int instanceCount, const QString& playtime);
++    void setAccount(const QString& name, const QIcon& icon);
++    void setBackgroundAnimated(bool animated);
++    bool isBackgroundAnimated() const;
++
++    void setSearchText(const QString& text);
++    void focusSearch();
++
++    /*! Re-applies the translated strings (called on a language change). */
++    void retranslateUi();
++
++    /*! Re-applies the palette/font driven look, for themes without a stylesheet. */
++    void polishSelf();
++
++   signals:
++    void searchChanged(const QString& text);
++    void addInstanceRequested();
++    void accountsRequested();
++    void settingsRequested();
++
++   protected:
++    void resizeEvent(QResizeEvent* event) override;
++    void changeEvent(QEvent* event) override;
++
++   private:
++    NightSkyBackground* m_background = nullptr;
++    QWidget* m_hero = nullptr;
++    QWidget* m_cardsHost = nullptr;
++    QVBoxLayout* m_cardsLayout = nullptr;
++    QLabel* m_title = nullptr;
++    QLabel* m_subtitle = nullptr;
++    QLineEdit* m_search = nullptr;
++    QToolButton* m_account = nullptr;
++    QPushButton* m_add = nullptr;
++    QToolButton* m_settings = nullptr;
++    int m_instanceCount = 0;
++    QString m_playtime;
++    QString m_accountName;
++};
+diff --git a/launcher/ui/widgets/NightSkyBackground.cpp b/launcher/ui/widgets/NightSkyBackground.cpp
+new file mode 100644
+index 0000000..b3b851b
+--- /dev/null
++++ b/launcher/ui/widgets/NightSkyBackground.cpp
+@@ -0,0 +1,392 @@
++// SPDX-License-Identifier: GPL-3.0-only
++/*
++ *  Prism Launcher - Minecraft Launcher
++ *  Copyright (C) 2026 Prism Launcher contributors
++ *
++ *  This program is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, version 3.
++ *
++ *  This program is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
++ */
++
++#include "NightSkyBackground.h"
++
++#include <QBrush>
++#include <QCoreApplication>
++#include <QEvent>
++#include <QLinearGradient>
++#include <QPainter>
++#include <QRadialGradient>
++#include <QRandomGenerator>
++#include <QtMath>
++
++#include <algorithm>
++
++namespace {
++QColor mix(const QColor& from, const QColor& to, qreal amount)
++{
++    const qreal t = qBound(0.0, amount, 1.0);
++    return QColor::fromRgbF(from.redF() * (1.0 - t) + to.redF() * t, from.greenF() * (1.0 - t) + to.greenF() * t,
++                            from.blueF() * (1.0 - t) + to.blueF() * t);
++}
++
++qreal randomBetween(qreal from, qreal to)
++{
++    return from + QRandomGenerator::global()->generateDouble() * (to - from);
++}
++}  // namespace
++
++NightSkyBackground::NightSkyBackground(QWidget* parent) : QWidget(parent)
++{
++    setAttribute(Qt::WA_OpaquePaintEvent, true);
++    setAttribute(Qt::WA_TransparentForMouseEvents, true);
++    setFocusPolicy(Qt::NoFocus);
++    setAutoFillBackground(false);
++
++    m_timer.setInterval(33);  // ~30 fps is plenty for a slow sky
++    m_timer.setTimerType(Qt::CoarseTimer);
++    connect(&m_timer, &QTimer::timeout, this, &NightSkyBackground::tick);
++
++    refreshPalette();
++    rebuildNebula();
++    rebuildStars();
++}
++
++void NightSkyBackground::setAnimated(bool animated)
++{
++    if (m_animated == animated)
++        return;
++    m_animated = animated;
++    updateRunning();
++    update();
++}
++
++void NightSkyBackground::setIntensity(qreal intensity)
++{
++    const qreal clamped = qBound(0.0, intensity, 1.0);
++    if (qFuzzyCompare(m_intensity, clamped))
++        return;
++    m_intensity = clamped;
++    update();
++}
++
++bool NightSkyBackground::event(QEvent* event)
++{
++    switch (event->type()) {
++        case QEvent::PaletteChange:
++        case QEvent::ApplicationPaletteChange:
++        case QEvent::StyleChange:
++            refreshPalette();
++            rebuildNebula();
++            rebuildStars();
++            update();
++            break;
++        case QEvent::ActivationChange:
++        case QEvent::WindowActivate:
++        case QEvent::WindowDeactivate:
++            updateRunning();
++            break;
++        default:
++            break;
++    }
++    return QWidget::event(event);
++}
++
++void NightSkyBackground::showEvent(QShowEvent* event)
++{
++    QWidget::showEvent(event);
++    updateRunning();
++}
++
++void NightSkyBackground::hideEvent(QHideEvent* event)
++{
++    QWidget::hideEvent(event);
++    updateRunning();
++}
++
++void NightSkyBackground::resizeEvent(QResizeEvent* event)
++{
++    QWidget::resizeEvent(event);
++    m_buffer = QImage();
++    ensureBuffer();
++    rebuildStars();
++}
++
++void NightSkyBackground::tick()
++{
++    const qreal dt = m_timer.interval() / 1000.0;
++    m_seconds += dt;
++
++    // Meteors come and go: spawn one every few seconds, never too many at once.
++    m_nextMeteor -= dt;
++    if (m_nextMeteor <= 0.0) {
++        // A bright theme gets a day sky: no shooting stars over a white window.
++        if (m_meteors.size() < 3 && !m_lightSky)
++            spawnMeteor();
++        m_nextMeteor = randomBetween(1.8, 4.8);
++    }
++
++    for (int i = m_meteors.size() - 1; i >= 0; --i) {
++        Meteor& meteor = m_meteors[i];
++        meteor.age += dt;
++        meteor.x += meteor.vx * dt;
++        meteor.y += meteor.vy * dt;
++
++        const bool gone = meteor.age >= meteor.life || meteor.y > height() + meteor.length || meteor.x < -meteor.length * 2;
++        if (gone)
++            m_meteors.remove(i);
++    }
++
++    update();
++}
++
++void NightSkyBackground::updateRunning()
++{
++    const bool visible = isVisible();
++    const bool active = window() == nullptr || window()->isActiveWindow();
++    const bool shouldRun = m_animated && visible && active && m_intensity > 0.0;
++
++    if (shouldRun == m_running)
++        return;
++
++    m_running = shouldRun;
++    if (m_running) {
++        m_timer.start();
++    } else {
++        m_timer.stop();
++    }
++}
++
++void NightSkyBackground::refreshPalette()
++{
++    const QPalette pal = palette();
++    QColor base = pal.color(QPalette::Window);
++    if (!base.isValid())
++        base = QColor(14, 17, 23);
++
++    QColor accent = pal.color(QPalette::Highlight);
++    if (!accent.isValid())
++        accent = QColor(76, 125, 255);
++
++    m_lightSky = base.lightness() > 140;
++
++    if (m_lightSky) {
++        // Never paint a black sky into a white window: this is the pale dawn
++        // variant, with faint dust motes instead of bright stars.
++        m_skyTop = mix(base.darker(106), accent, 0.05);
++        m_skyBottom = base;
++        m_starColor = mix(QColor(20, 30, 50), accent, 0.25);
++        m_meteorColor = accent.darker(165);
++    } else {
++        m_skyTop = base.darker(142);
++        m_skyBottom = mix(base.lighter(124), accent, 0.10);
++        m_starColor = mix(QColor(240, 246, 255), accent, 0.15);
++        m_meteorColor = mix(accent.lighter(160), QColor(255, 255, 255), 0.35);
++    }
++}
++
++void NightSkyBackground::rebuildNebula()
++{
++    const QPalette pal = palette();
++    QColor accent = pal.color(QPalette::Highlight);
++    if (!accent.isValid())
++        accent = QColor(76, 125, 255);
++
++    QColor cool = accent;
++    cool.setHsv((accent.hsvHue() + 26) % 360, qBound(0, int(accent.hsvSaturation() * 0.8), 255), qMin(255, int(accent.value() * 1.04)));
++    QColor warm = accent;
++    warm.setHsv((accent.hsvHue() + 330) % 360, qBound(0, int(accent.hsvSaturation() * 0.75), 255), qMin(255, int(accent.value())));
++    m_nebula = {
++        { mix(accent, m_skyBottom, 0.80), 0.95, 0.0, 0.030, 0.10, 0.06, 0.72, 0.24 },
++        { mix(cool, m_skyBottom, 0.82), 0.80, 2.1, 0.024, 0.12, 0.05, 0.22, 0.66 },
++        { mix(warm, m_skyTop, 0.86), 1.05, 4.2, 0.017, 0.08, 0.07, 0.48, 0.42 },
++    };
++}
++
++void NightSkyBackground::rebuildStars()
++{
++    const int wanted = qBound(70, int(width() * qreal(height()) / 3800.0), 320);
++    if (m_stars.size() == wanted && !m_stars.isEmpty())
++        return;
++
++    auto* rng = QRandomGenerator::global();
++    m_stars.clear();
++    m_stars.reserve(wanted);
++    for (int i = 0; i < wanted; ++i) {
++        Star star;
++        star.x = rng->generateDouble();
++        // Weight the field slightly towards the top, where the sky is darkest.
++        star.y = std::pow(rng->generateDouble(), 1.35);
++        star.radius = randomBetween(0.6, 1.7);
++        star.brightness = randomBetween(0.30, 1.0);
++        star.twinkleSpeed = randomBetween(0.25, 1.10);
++        star.twinklePhase = randomBetween(0.0, 6.28318);
++        m_stars.append(star);
++    }
++}
++
++void NightSkyBackground::spawnMeteor()
++{
++    Meteor meteor;
++    const qreal speed = randomBetween(760.0, 1180.0);
++    const bool leftwards = QRandomGenerator::global()->bounded(100) < 70;
++    // 20-40 degrees below the horizon line.
++    const qreal angle = qDegreesToRadians(randomBetween(20.0, 40.0));
++
++    meteor.vx = (leftwards ? -1.0 : 1.0) * qCos(angle) * speed;
++    meteor.vy = qSin(angle) * speed;
++    meteor.length = randomBetween(90.0, 180.0);
++    meteor.width = randomBetween(1.2, 2.2);
++    meteor.age = 0.0;
++    meteor.life = randomBetween(1.3, 2.1);
++
++    // Enter from just outside the top edge so nothing pops in mid-sky.
++    const qreal column = leftwards ? randomBetween(0.30, 1.02) : randomBetween(-0.02, 0.70);
++    meteor.x = column * width();
++    meteor.y = -randomBetween(10.0, 90.0);
++    m_meteors.append(meteor);
++}
++
++void NightSkyBackground::ensureBuffer()
++{
++    if (m_buffer.isNull() || m_buffer.size() != QSize(qMax(1, width() / 2), qMax(1, height() / 2))) {
++        // The sky and nebula are soft gradients, so half resolution is invisible
++        // once upscaled and keeps the paint cost four times lower.
++        m_buffer = QImage(QSize(qMax(1, width() / 2), qMax(1, height() / 2)), QImage::Format_ARGB32_Premultiplied);
++    }
++}
++
++void NightSkyBackground::paintEvent(QPaintEvent*)
++{
++    ensureBuffer();
++    if (m_buffer.isNull())
++        return;
++
++    const QSize half = m_buffer.size();
++    const QRectF canvas(0, 0, half.width(), half.height());
++
++    QPainter buffer(&m_buffer);
++    buffer.setRenderHint(QPainter::Antialiasing, true);
++
++    QLinearGradient sky(canvas.topLeft(), canvas.bottomLeft());
++    sky.setColorAt(0.0, m_skyTop);
++    sky.setColorAt(1.0, m_skyBottom);
++    buffer.fillRect(canvas, sky);
++
++    buffer.setPen(Qt::NoPen);
++    const qreal diagonal = qSqrt(qreal(half.width()) * half.width() + qreal(half.height()) * half.height());
++    for (const Nebula& nebula : std::as_const(m_nebula)) {
++        const qreal angle = m_seconds * nebula.speed * 2.0 * M_PI + nebula.phase;
++        const qreal cx = (nebula.x + qSin(angle) * nebula.driftX) * half.width();
++        const qreal cy = (nebula.y + qCos(angle * 0.87) * nebula.driftY) * half.height();
++        const qreal radius = qMax(1.0, nebula.radius * diagonal);
++
++        QRadialGradient gradient(QPointF(cx, cy), radius);
++        const qreal glowAlpha = (m_lightSky ? 0.045 : 0.10) * m_intensity;
++        QColor inner = nebula.color;
++        inner.setAlphaF(qBound(0.0, glowAlpha, 1.0));
++        QColor middle = nebula.color;
++        middle.setAlphaF(qBound(0.0, glowAlpha * 0.3, 1.0));
++        QColor outer = nebula.color;
++        outer.setAlphaF(0.0);
++        gradient.setColorAt(0.0, inner);
++        gradient.setColorAt(0.5, middle);
++        gradient.setColorAt(1.0, outer);
++
++        // Filling the canvas rather than an ellipse: a drawn circle would cut a
++        // visible arc wherever its radius ended inside the widget.
++        buffer.setBrush(gradient);
++        buffer.fillRect(canvas, gradient);
++    }
++
++    // A faint static grain hides the contour rings an 8-bit gradient leaves on
++    // a dark background; on a light one it just looks like a dirty screen.
++    if (!m_lightSky && m_noise.isNull()) {
++        m_noise = QImage(64, 64, QImage::Format_ARGB32);
++        auto* rng = QRandomGenerator::global();
++        for (int y = 0; y < m_noise.height(); ++y) {
++            for (int x = 0; x < m_noise.width(); ++x) {
++                m_noise.setPixel(x, y, qRgba(128, 128, 128, int(rng->bounded(9))));
++            }
++        }
++    }
++    if (!m_lightSky)
++        buffer.fillRect(canvas, QBrush(m_noise));
++    buffer.end();
++
++    QPainter painter(this);
++    painter.setRenderHint(QPainter::Antialiasing, true);
++    painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
++    painter.drawImage(rect(), m_buffer);
++
++    if (m_intensity <= 0.0 || m_lightSky)
++        return;
++
++    // ---- stars (full resolution, so they stay crisp) --------------------
++    const qreal starLevel = m_intensity * (m_lightSky ? 0.45 : 1.0);
++    painter.setPen(Qt::NoPen);
++    for (const Star& star : std::as_const(m_stars)) {
++        const qreal twinkle = 0.55 + 0.45 * qSin(m_seconds * star.twinkleSpeed + star.twinklePhase);
++        QColor color = m_starColor;
++        color.setAlphaF(qBound(0.0, star.brightness * twinkle * starLevel, 1.0));
++
++        const QPointF center(star.x * width(), star.y * height());
++        painter.setBrush(color);
++        painter.drawEllipse(center, star.radius, star.radius);
++
++        if (star.brightness > 0.86) {
++            QColor halo = color;
++            halo.setAlphaF(color.alphaF() * 0.22);
++            painter.setBrush(halo);
++            painter.drawEllipse(center, star.radius * 2.8, star.radius * 2.8);
++        }
++    }
++
++    // ---- meteors -------------------------------------------------------
++    for (const Meteor& meteor : std::as_const(m_meteors)) {
++        const qreal progress = meteor.age / meteor.life;
++        const qreal fade = qBound(0.0, 1.0 - progress, 1.0) * m_intensity;
++        if (fade <= 0.0)
++            continue;
++
++        const QPointF head(meteor.x, meteor.y);
++        const qreal speed = qSqrt(meteor.vx * meteor.vx + meteor.vy * meteor.vy);
++        if (speed < 1.0)
++            continue;
++        const QPointF direction(meteor.vx / speed, meteor.vy / speed);
++        const QPointF tail = head - direction * meteor.length;
++
++        QLinearGradient streak(tail, head);
++        QColor cold = m_meteorColor;
++        cold.setAlphaF(0.0);
++        QColor warm = m_meteorColor;
++        warm.setAlphaF(0.55 * fade);
++        QColor hot = m_meteorColor;
++        hot.setAlphaF(0.95 * fade);
++        streak.setColorAt(0.0, cold);
++        streak.setColorAt(0.65, warm);
++        streak.setColorAt(1.0, hot);
++
++        painter.setPen(QPen(QBrush(streak), meteor.width, Qt::SolidLine, Qt::RoundCap));
++        painter.drawLine(tail, head);
++
++        const qreal glowRadius = meteor.width * 3.6;
++        QRadialGradient glow(head, glowRadius);
++        QColor core = hot;
++        core.setAlphaF(0.85 * fade);
++        QColor edge = hot;
++        edge.setAlphaF(0.0);
++        glow.setColorAt(0.0, core);
++        glow.setColorAt(1.0, edge);
++        painter.setPen(Qt::NoPen);
++        painter.setBrush(glow);
++        painter.drawEllipse(head, glowRadius, glowRadius);
++    }
++}
+diff --git a/launcher/ui/widgets/NightSkyBackground.h b/launcher/ui/widgets/NightSkyBackground.h
+new file mode 100644
+index 0000000..6a19531
+--- /dev/null
++++ b/launcher/ui/widgets/NightSkyBackground.h
+@@ -0,0 +1,124 @@
++// SPDX-License-Identifier: GPL-3.0-only
++/*
++ *  Prism Launcher - Minecraft Launcher
++ *  Copyright (C) 2026 Prism Launcher contributors
++ *
++ *  This program is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, version 3.
++ *
++ *  This program is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
++ */
++
++#pragma once
++
++#include <QColor>
++#include <QImage>
++#include <QTimer>
++#include <QVector>
++#include <QWidget>
++
++/*!
++ * An animated night sky for the home screen: a vertical sky gradient, a field of
++ * twinkling stars, and meteors that streak past every few seconds, with a very
++ * faint nebula wash for depth.
++ *
++ * Every colour comes from the current theme palette. On a light theme the sky
++ * becomes a pale dawn instead of a black night, so the widget never turns a
++ * white window into an unreadable dark one.
++ *
++ * The sky and nebula are rendered into a half resolution buffer and upscaled
++ * (they are soft gradients, so the upscale is invisible); the stars and meteors
++ * are drawn at full resolution afterwards so they stay crisp. Animation stops
++ * completely when the widget is hidden or the window is not active.
++ */
++class NightSkyBackground : public QWidget {
++    Q_OBJECT
++
++   public:
++    explicit NightSkyBackground(QWidget* parent = nullptr);
++    ~NightSkyBackground() override = default;
++
++    bool isAnimated() const { return m_animated; }
++    void setAnimated(bool animated);
++
++    /*! 0..1 multiplier for the stars and meteors. */
++    qreal intensity() const { return m_intensity; }
++    void setIntensity(qreal intensity);
++
++    bool event(QEvent* event) override;
++
++   protected:
++    void paintEvent(QPaintEvent* event) override;
++    void resizeEvent(QResizeEvent* event) override;
++    void showEvent(QShowEvent* event) override;
++    void hideEvent(QHideEvent* event) override;
++
++   private slots:
++    void tick();
++
++   private:
++    struct Star {
++        qreal x;              //!< fraction of the width
++        qreal y;              //!< fraction of the height
++        qreal radius;         //!< pixels, full resolution
++        qreal brightness;     //!< 0..1
++        qreal twinkleSpeed;   //!< radians per second
++        qreal twinklePhase;   //!< radians
++    };
++
++    struct Meteor {
++        qreal x;         //!< head position, pixels
++        qreal y;
++        qreal vx;        //!< pixels per second
++        qreal vy;
++        qreal length;    //!< tail length in pixels
++        qreal width;     //!< stroke width in pixels
++        qreal age;       //!< seconds
++        qreal life;      //!< seconds
++    };
++
++    struct Nebula {
++        QColor color;
++        qreal radius;    //!< fraction of the diagonal
++        qreal phase;
++        qreal speed;     //!< radians per second
++        qreal driftX;
++        qreal driftY;
++        qreal x;         //!< rest position, fractions
++        qreal y;
++    };
++
++    void refreshPalette();
++    void rebuildNebula();
++    void rebuildStars();
++    void spawnMeteor();
++    void ensureBuffer();
++    void updateRunning();
++
++    QVector<Star> m_stars;
++    QVector<Meteor> m_meteors;
++    QVector<Nebula> m_nebula;
++
++    QTimer m_timer;
++    QImage m_buffer;
++    QImage m_noise;
++
++    QColor m_skyTop;
++    QColor m_skyBottom;
++    QColor m_starColor;
++    QColor m_meteorColor;
++
++    qreal m_seconds = 0;
++    qreal m_nextMeteor = 3.0;
++    qreal m_intensity = 1.0;
++    bool m_animated = true;
++    bool m_running = false;
++    bool m_lightSky = false;
++};
+diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
+index 2165cd0..980e0bc 100644
+--- a/tests/CMakeLists.txt
++++ b/tests/CMakeLists.txt
+@@ -57,9 +57,9 @@ ecm_add_test(Version_test.cpp LINK_LIBRARIES Launcher_logic Qt${QT_VERSION_MAJOR
+ ecm_add_test(MetaComponentParse_test.cpp LINK_LIBRARIES Launcher_logic Qt${QT_VERSION_MAJOR}::Test
+     TEST_NAME MetaComponentParse)
+ 
+-ecm_add_test(CatPack_test.cpp LINK_LIBRARIES Launcher_logic Qt${QT_VERSION_MAJOR}::Test
+-    TEST_NAME CatPack)
+-
+ 
+ ecm_add_test(XmlLogs_test.cpp LINK_LIBRARIES Launcher_logic Qt${QT_VERSION_MAJOR}::Test
+     TEST_NAME XmlLogs)
++
++ecm_add_test(InstanceFilter_test.cpp LINK_LIBRARIES Launcher_logic Qt${QT_VERSION_MAJOR}::Test
++    TEST_NAME InstanceFilter)
+diff --git a/tests/CatPack_test.cpp b/tests/CatPack_test.cpp
+deleted file mode 100644
+index 330d1a8..0000000
+--- a/tests/CatPack_test.cpp
++++ /dev/null
+@@ -1,40 +0,0 @@
+-#include <QTest>
+-
+-#include <QDate>
+-#include <QFileInfo>
+-#include <QList>
+-#include <QTemporaryFile>
+-#include "FileSystem.h"
+-#include "ui/themes/CatPack.h"
+-
+-class CatPackTest : public QObject {
+-    Q_OBJECT
+-   private slots:
+-    void test_catPack()
+-    {
+-        auto dataDir = QDir(QFINDTESTDATA("testdata/CatPacks")).absolutePath();
+-        auto fileName = FS::PathCombine(dataDir, "index.json");
+-        auto fileinfo = QFileInfo(fileName);
+-        try {
+-            auto cat = JsonCatPack(fileinfo);
+-            QCOMPARE(cat.path(QDate(2023, 4, 12)), FS::PathCombine(fileinfo.path(), "oneDay.png"));
+-            QCOMPARE(cat.path(QDate(2023, 4, 11)), FS::PathCombine(fileinfo.path(), "maxwell.png"));
+-            QCOMPARE(cat.path(QDate(2023, 4, 13)), FS::PathCombine(fileinfo.path(), "maxwell.png"));
+-            QCOMPARE(cat.path(QDate(2023, 12, 21)), FS::PathCombine(fileinfo.path(), "christmas.png"));
+-            QCOMPARE(cat.path(QDate(2023, 12, 28)), FS::PathCombine(fileinfo.path(), "christmas.png"));
+-            QCOMPARE(cat.path(QDate(2023, 12, 29)), FS::PathCombine(fileinfo.path(), "newyear.png"));
+-            QCOMPARE(cat.path(QDate(2023, 12, 30)), FS::PathCombine(fileinfo.path(), "newyear2.png"));
+-            QCOMPARE(cat.path(QDate(2023, 12, 31)), FS::PathCombine(fileinfo.path(), "newyear2.png"));
+-            QCOMPARE(cat.path(QDate(2024, 1, 1)), FS::PathCombine(fileinfo.path(), "newyear2.png"));
+-            QCOMPARE(cat.path(QDate(2024, 1, 2)), FS::PathCombine(fileinfo.path(), "newyear.png"));
+-            QCOMPARE(cat.path(QDate(2024, 1, 3)), FS::PathCombine(fileinfo.path(), "newyear.png"));
+-            QCOMPARE(cat.path(QDate(2024, 1, 4)), FS::PathCombine(fileinfo.path(), "maxwell.png"));
+-        } catch (const Exception& e) {
+-            QFAIL(e.cause().toLatin1());
+-        }
+-    }
+-};
+-
+-QTEST_GUILESS_MAIN(CatPackTest)
+-
+-#include "CatPack_test.moc"
+diff --git a/tests/InstanceFilter_test.cpp b/tests/InstanceFilter_test.cpp
+new file mode 100644
+index 0000000..16a4763
+--- /dev/null
++++ b/tests/InstanceFilter_test.cpp
+@@ -0,0 +1,88 @@
++// SPDX-License-Identifier: GPL-3.0-only
++/*
++ *  Prism Launcher - Minecraft Launcher
++ *  Copyright (C) 2026 Prism Launcher contributors
++ *
++ *  This program is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, version 3.
++ *
++ *  This program is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
++ */
++
++#include <QAbstractListModel>
++#include <QTest>
++
++#include "ui/instanceview/InstanceNameFilter.h"
++#include "ui/instanceview/InstanceProxyModel.h"
++
++/*! Stand-in for InstanceList: DisplayRole is the instance name, as it is there. */
++class FakeInstanceModel : public QAbstractListModel {
++   public:
++    explicit FakeInstanceModel(QStringList names) : m_names(std::move(names)) {}
++
++    int rowCount(const QModelIndex& parent = QModelIndex()) const override { return parent.isValid() ? 0 : int(m_names.size()); }
++
++    QVariant data(const QModelIndex& index, int role) const override
++    {
++        if (!index.isValid() || index.row() < 0 || index.row() >= m_names.size())
++            return {};
++        if (role == Qt::DisplayRole)
++            return m_names.at(index.row());
++        return {};
++    }
++
++   private:
++    QStringList m_names;
++};
++
++class InstanceFilterTest : public QObject {
++    Q_OBJECT
++
++   private slots:
++    void predicate()
++    {
++        QVERIFY(instanceNameMatchesFilter(QStringLiteral("SkyFactory 5"), QString()));
++        QVERIFY(instanceNameMatchesFilter(QStringLiteral("SkyFactory 5"), QStringLiteral("sky")));
++        QVERIFY(instanceNameMatchesFilter(QStringLiteral("SkyFactory 5"), QStringLiteral("  SKY  ")));
++        QVERIFY(instanceNameMatchesFilter(QStringLiteral("Fabulously Optimized"), QStringLiteral("optim")));
++        QVERIFY(!instanceNameMatchesFilter(QStringLiteral("Vanilla"), QStringLiteral("sky")));
++        QVERIFY(!instanceNameMatchesFilter(QStringLiteral("Vanilla"), QStringLiteral("vanilla1")));
++    }
++
++    void proxyFiltersRows()
++    {
++        FakeInstanceModel model({ QStringLiteral("SkyFactory 5"), QStringLiteral("All the Mods 10"), QStringLiteral("Vanilla"),
++                                  QStringLiteral("skyblock") });
++        InstanceProxyModel proxy;
++        proxy.setSourceModel(&model);
++
++        QCOMPARE(proxy.rowCount(), 4);
++
++        proxy.setInstanceFilter(QStringLiteral("sky"));
++        QCOMPARE(proxy.rowCount(), 2);
++
++        proxy.setInstanceFilter(QStringLiteral("  SKY  "));
++        QCOMPARE(proxy.rowCount(), 2);
++
++        proxy.setInstanceFilter(QStringLiteral("vanilla"));
++        QCOMPARE(proxy.rowCount(), 1);
++        QCOMPARE(proxy.index(0, 0).data(Qt::DisplayRole).toString(), QStringLiteral("Vanilla"));
++
++        proxy.setInstanceFilter(QStringLiteral("nomatch"));
++        QCOMPARE(proxy.rowCount(), 0);
++
++        proxy.setInstanceFilter(QString());
++        QCOMPARE(proxy.rowCount(), 4);
++    }
++};
++
++QTEST_GUILESS_MAIN(InstanceFilterTest)
++
++#include "InstanceFilter_test.moc"
+diff --git a/tests/testdata/CatPacks/index.json b/tests/testdata/CatPacks/index.json
+deleted file mode 100644
+index b5401d2305d68217bff0671b5fd14cfe8af3b427..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 1068
+zcmcJMu?~VT5QcZ2qUmgm6bIvqtDBo~xJVTeD5Nc7LwI-F5*q42h{8?H{n!8QyK4ia
+z12ZTnJ|cWpD6S<%F-W}WrG!49&ZSWccsDf9w-tL1>I--VObRVuZN0H;-OHK_30z(>
+z+rgKtoPg55L(=y%sUdJtGMQ>|?-_P}C8jJ{(Y*pY0xlUnfwJswn$aXa7@oyUc0P&W
+zcFZAhZA^aD%9hQ5CWqhc2kLvuGa(BQi-Je%f`?PwlUp6I8Eq5=P8Oy9=N>c89W6!u
+L1#K603%cL~@R!oS
+
+diff --git a/translations/new-strings.ts b/translations/new-strings.ts
+new file mode 100644
+index 0000000..5c4c966
+--- /dev/null
++++ b/translations/new-strings.ts
+@@ -0,0 +1,80 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!DOCTYPE TS>
++<TS version="2.1" language="en_GB">
++<!-- New strings introduced by the Aurora revamp (home surface, night sky
++     background, Aurora theme name). Merge with the translation repo:
++     lupdate -i new-strings.ts   or   lconvert existing.ts new-strings.ts -o merged.ts
++     Translations themselves are managed on Weblate. -->
++<context>
++    <name>HomeSurface</name>
++    <message>
++        <location filename="../../src/launcher/ui/widgets/HomeSurface.cpp" line="+58"/>
++        <location line="+129"/>
++        <source>Instances</source>
++        <translation type="unfinished"></translation>
++    </message>
++    <message>
++        <location line="-127"/>
++        <source>No instances yet</source>
++        <translation type="unfinished"></translation>
++    </message>
++    <message>
++        <location line="+10"/>
++        <location line="+118"/>
++        <source>Search instances</source>
++        <translation type="unfinished"></translation>
++    </message>
++    <message>
++        <location line="-115"/>
++        <location line="+116"/>
++        <source>Filter the instance list by name</source>
++        <translation type="unfinished"></translation>
++    </message>
++    <message>
++        <location line="-110"/>
++        <location line="+87"/>
++        <location line="+28"/>
++        <source>Accounts</source>
++        <translation type="unfinished"></translation>
++    </message>
++    <message>
++        <location line="-112"/>
++        <location line="+110"/>
++        <source>Manage accounts</source>
++        <translation type="unfinished"></translation>
++    </message>
++    <message>
++        <location line="-106"/>
++        <location line="+104"/>
++        <source>Add Instance</source>
++        <translation type="unfinished"></translation>
++    </message>
++    <message>
++        <location line="-101"/>
++        <location line="+102"/>
++        <source>Create a new instance</source>
++        <translation type="unfinished"></translation>
++    </message>
++    <message>
++        <location line="-91"/>
++        <location line="+93"/>
++        <source>Settings</source>
++        <translation type="unfinished"></translation>
++    </message>
++    <message>
++        <location line="-37"/>
++        <source>1 instance</source>
++        <translation type="unfinished"></translation>
++    </message>
++    <message>
++        <location line="+0"/>
++        <source>%1 instances</source>
++        <translation type="unfinished"></translation>
++    </message>
++    <message>
++        <location line="+4"/>
++        <source>%1  -  %2</source>
++        <translation type="unfinished"></translation>
++    </message>
++</context>
++</TS>
