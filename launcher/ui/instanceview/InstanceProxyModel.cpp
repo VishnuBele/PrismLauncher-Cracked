@@ -15,6 +15,8 @@
 
 #include "InstanceProxyModel.h"
 
+#include "InstanceNameFilter.h"
+
 #include <BaseInstance.h>
 #include <icons/IconList.h>
 #include "Application.h"
@@ -37,6 +39,36 @@ QVariant InstanceProxyModel::data(const QModelIndex& index, int role) const
         return QVariant(APPLICATION->icons()->getIcon(data.toString()));
     }
     return data;
+}
+
+/*!
+ * The home screen search box drives this through setFilterFixedString(). The
+ * base class would match on its default role/column plumbing, which the
+ * instance model does not really support (the name is DisplayRole, but the
+ * grouping and the icon live in custom roles), so the match is done here
+ * explicitly against the instance name.
+ */
+bool InstanceProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const
+{
+    const QAbstractItemModel* source = sourceModel();
+    if (!source)
+        return true;
+
+    if (m_filter.isEmpty())
+        return true;
+
+    const QModelIndex index = source->index(sourceRow, 0, sourceParent);
+    return instanceNameMatchesFilter(source->data(index, Qt::DisplayRole).toString(), m_filter);
+}
+
+void InstanceProxyModel::setInstanceFilter(const QString& filter)
+{
+    const QString normalized = filter.trimmed();
+    if (m_filter == normalized)
+        return;
+
+    m_filter = normalized;
+    invalidateFilter();
 }
 
 bool InstanceProxyModel::lessThan(const QModelIndex& left, const QModelIndex& right) const

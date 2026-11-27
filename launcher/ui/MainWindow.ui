@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <ui version="4.0">
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
@@ -29,7 +29,7 @@
     </property>
    </layout>
   </widget>
-  <widget class="QStatusBar" name="statusBar"/>
+  <widget class="QStatusBar" name="statusBar" />
   <widget class="QToolBar" name="mainToolBar">
    <property name="windowTitle">
     <string>Main Toolbar</string>
@@ -49,15 +49,14 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actionAddInstance"/>
-   <addaction name="separator"/>
-   <addaction name="actionFoldersButton"/>
-   <addaction name="actionSettings"/>
-   <addaction name="actionHelpButton"/>
-   <addaction name="actionCheckUpdate"/>
-   <addaction name="separator"/>
-   <addaction name="actionCAT"/>
-   <addaction name="actionAccountsButton"/>
+   <addaction name="actionAddInstance" />
+   <addaction name="separator" />
+   <addaction name="actionFoldersButton" />
+   <addaction name="actionSettings" />
+   <addaction name="actionHelpButton" />
+   <addaction name="actionCheckUpdate" />
+   <addaction name="separator" />
+   <addaction name="actionAccountsButton" />
   </widget>
   <widget class="QToolBar" name="newsToolBar">
    <property name="windowTitle">
@@ -84,7 +83,7 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actionMoreNews"/>
+   <addaction name="actionMoreNews" />
   </widget>
   <widget class="WideBar" name="instanceToolBar">
    <property name="windowTitle">
@@ -114,16 +113,16 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actionLaunchInstance"/>
-   <addaction name="actionKillInstance"/>
-   <addaction name="separator"/>
-   <addaction name="actionEditInstance"/>
-   <addaction name="actionChangeInstGroup"/>
-   <addaction name="actionViewSelectedInstFolder"/>
-   <addaction name="actionExportInstance"/>
-   <addaction name="actionCopyInstance"/>
-   <addaction name="actionDeleteInstance"/>
-   <addaction name="actionCreateInstanceShortcut"/>
+   <addaction name="actionLaunchInstance" />
+   <addaction name="actionKillInstance" />
+   <addaction name="separator" />
+   <addaction name="actionEditInstance" />
+   <addaction name="actionChangeInstGroup" />
+   <addaction name="actionViewSelectedInstFolder" />
+   <addaction name="actionExportInstance" />
+   <addaction name="actionCopyInstance" />
+   <addaction name="actionDeleteInstance" />
+   <addaction name="actionCreateInstanceShortcut" />
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
@@ -141,21 +140,21 @@
     <property name="toolTipsVisible">
      <bool>true</bool>
     </property>
-    <addaction name="actionAddInstance"/>
-    <addaction name="separator"/>
-    <addaction name="actionLaunchInstance"/>
-    <addaction name="actionKillInstance"/>
-    <addaction name="separator"/>
-    <addaction name="actionEditInstance"/>
-    <addaction name="actionChangeInstGroup"/>
-    <addaction name="actionViewSelectedInstFolder"/>
-    <addaction name="actionExportInstance"/>
-    <addaction name="actionCopyInstance"/>
-    <addaction name="actionDeleteInstance"/>
-    <addaction name="actionCreateInstanceShortcut"/>
-    <addaction name="separator"/>
-    <addaction name="actionSettings"/>
-    <addaction name="actionCloseWindow"/>
+    <addaction name="actionAddInstance" />
+    <addaction name="separator" />
+    <addaction name="actionLaunchInstance" />
+    <addaction name="actionKillInstance" />
+    <addaction name="separator" />
+    <addaction name="actionEditInstance" />
+    <addaction name="actionChangeInstGroup" />
+    <addaction name="actionViewSelectedInstFolder" />
+    <addaction name="actionExportInstance" />
+    <addaction name="actionCopyInstance" />
+    <addaction name="actionDeleteInstance" />
+    <addaction name="actionCreateInstanceShortcut" />
+    <addaction name="separator" />
+    <addaction name="actionSettings" />
+    <addaction name="actionCloseWindow" />
    </widget>
    <widget class="QMenu" name="editMenu">
     <property name="title">
@@ -164,7 +163,7 @@
     <property name="toolTipsVisible">
      <bool>true</bool>
     </property>
-    <addaction name="actionUndoTrashInstance"/>
+    <addaction name="actionUndoTrashInstance" />
    </widget>
    <widget class="QMenu" name="viewMenu">
     <property name="title">
@@ -173,12 +172,11 @@
     <property name="toolTipsVisible">
      <bool>true</bool>
     </property>
-    <addaction name="actionChangeTheme"/>
-    <addaction name="separator"/>
-    <addaction name="actionCAT"/>
-    <addaction name="actionToggleStatusBar"/>
-    <addaction name="actionLockToolbars"/>
-    <addaction name="separator"/>
+    <addaction name="actionChangeTheme" />
+    <addaction name="separator" />
+    <addaction name="actionToggleStatusBar" />
+    <addaction name="actionLockToolbars" />
+    <addaction name="separator" />
    </widget>
    <widget class="QMenu" name="foldersMenu">
     <property name="title">
@@ -187,19 +185,18 @@
     <property name="toolTipsVisible">
      <bool>true</bool>
     </property>
-    <addaction name="actionViewLauncherRootFolder"/>
-    <addaction name="separator"/>
-    <addaction name="actionViewInstanceFolder"/>
-    <addaction name="actionViewCentralModsFolder"/>
-    <addaction name="actionViewSkinsFolder"/>
-    <addaction name="actionViewJavaFolder"/>
-    <addaction name="separator"/>
-    <addaction name="actionViewIconThemeFolder"/>
-    <addaction name="actionViewWidgetThemeFolder"/>
-    <addaction name="actionViewCatPackFolder"/>
-    <addaction name="actionViewIconsFolder"/>
-    <addaction name="separator"/>
-    <addaction name="actionViewLogsFolder"/>
+    <addaction name="actionViewLauncherRootFolder" />
+    <addaction name="separator" />
+    <addaction name="actionViewInstanceFolder" />
+    <addaction name="actionViewCentralModsFolder" />
+    <addaction name="actionViewSkinsFolder" />
+    <addaction name="actionViewJavaFolder" />
+    <addaction name="separator" />
+    <addaction name="actionViewIconThemeFolder" />
+    <addaction name="actionViewWidgetThemeFolder" />
+    <addaction name="actionViewIconsFolder" />
+    <addaction name="separator" />
+    <addaction name="actionViewLogsFolder" />
    </widget>
    <widget class="QMenu" name="accountsMenu">
     <property name="title">
@@ -213,50 +210,36 @@
     <property name="toolTipsVisible">
      <bool>true</bool>
     </property>
-    <addaction name="actionClearMetadata"/>
-    <addaction name="actionReportBug"/>
-    <addaction name="actionViewLog"/>
-    <addaction name="actionAddToPATH"/>
-    <addaction name="separator"/>
-    <addaction name="actionMATRIX"/>
-    <addaction name="actionDISCORD"/>
-    <addaction name="actionREDDIT"/>
-    <addaction name="separator"/>
-    <addaction name="actionMoreNews"/>
-    <addaction name="actionCheckUpdate"/>
-    <addaction name="actionOpenWiki"/>
-    <addaction name="actionAbout"/>
+    <addaction name="actionClearMetadata" />
+    <addaction name="actionReportBug" />
+    <addaction name="actionViewLog" />
+    <addaction name="actionAddToPATH" />
+    <addaction name="separator" />
+    <addaction name="actionMATRIX" />
+    <addaction name="actionDISCORD" />
+    <addaction name="actionREDDIT" />
+    <addaction name="separator" />
+    <addaction name="actionMoreNews" />
+    <addaction name="actionCheckUpdate" />
+    <addaction name="actionOpenWiki" />
+    <addaction name="actionAbout" />
    </widget>
-   <addaction name="fileMenu"/>
-   <addaction name="editMenu"/>
-   <addaction name="viewMenu"/>
-   <addaction name="foldersMenu"/>
-   <addaction name="accountsMenu"/>
-   <addaction name="helpMenu"/>
+   <addaction name="fileMenu" />
+   <addaction name="editMenu" />
+   <addaction name="viewMenu" />
+   <addaction name="foldersMenu" />
+   <addaction name="accountsMenu" />
+   <addaction name="helpMenu" />
   </widget>
   <action name="actionMoreNews">
    <property name="icon">
-    <iconset theme="news"/>
+    <iconset theme="news" />
    </property>
    <property name="text">
     <string>More News...</string>
    </property>
    <property name="toolTip">
     <string>Open the development blog to read more news about %1.</string>
-   </property>
-  </action>
-  <action name="actionCAT">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="icon">
-    <iconset theme="cat"/>
-   </property>
-   <property name="text">
-    <string>&amp;Meow</string>
-   </property>
-   <property name="toolTip">
-    <string>It's a fluffy kitty :3</string>
    </property>
   </action>
   <action name="actionToggleStatusBar">
@@ -285,7 +268,7 @@
   </action>
   <action name="actionAddInstance">
    <property name="icon">
-    <iconset theme="new"/>
+    <iconset theme="new" />
    </property>
    <property name="text">
     <string>Add Instanc&amp;e...</string>
@@ -296,7 +279,7 @@
   </action>
   <action name="actionCheckUpdate">
    <property name="icon">
-    <iconset theme="checkupdate"/>
+    <iconset theme="checkupdate" />
    </property>
    <property name="text">
     <string>&amp;Update...</string>
@@ -310,7 +293,7 @@
   </action>
   <action name="actionSettings">
    <property name="icon">
-    <iconset theme="settings"/>
+    <iconset theme="settings" />
    </property>
    <property name="text">
     <string>Setti&amp;ngs...</string>
@@ -324,7 +307,7 @@
   </action>
   <action name="actionManageAccounts">
    <property name="icon">
-    <iconset theme="accounts"/>
+    <iconset theme="accounts" />
    </property>
    <property name="text">
     <string>&amp;Manage Accounts...</string>
@@ -332,7 +315,7 @@
   </action>
   <action name="actionLaunchInstance">
    <property name="icon">
-    <iconset theme="launch"/>
+    <iconset theme="launch" />
    </property>
    <property name="text">
     <string>&amp;Launch</string>
@@ -343,7 +326,7 @@
   </action>
   <action name="actionKillInstance">
    <property name="icon">
-    <iconset theme="status-bad"/>
+    <iconset theme="status-bad" />
    </property>
    <property name="text">
     <string>&amp;Kill</string>
@@ -357,7 +340,7 @@
   </action>
   <action name="actionRenameInstance">
    <property name="icon">
-    <iconset theme="rename"/>
+    <iconset theme="rename" />
    </property>
    <property name="text">
     <string>Rename</string>
@@ -368,7 +351,7 @@
   </action>
   <action name="actionChangeInstGroup">
    <property name="icon">
-    <iconset theme="tag"/>
+    <iconset theme="tag" />
    </property>
    <property name="text">
     <string>&amp;Change Group...</string>
@@ -390,7 +373,7 @@
   </action>
   <action name="actionEditInstance">
    <property name="icon">
-    <iconset theme="settings"/>
+    <iconset theme="settings" />
    </property>
    <property name="text">
     <string>&amp;Edit...</string>
@@ -404,7 +387,7 @@
   </action>
   <action name="actionViewSelectedInstFolder">
    <property name="icon">
-    <iconset theme="viewfolder"/>
+    <iconset theme="viewfolder" />
    </property>
    <property name="text">
     <string>&amp;Folder</string>
@@ -415,7 +398,7 @@
   </action>
   <action name="actionDeleteInstance">
    <property name="icon">
-    <iconset theme="delete"/>
+    <iconset theme="delete" />
    </property>
    <property name="text">
     <string>Dele&amp;te</string>
@@ -429,7 +412,7 @@
   </action>
   <action name="actionCopyInstance">
    <property name="icon">
-    <iconset theme="copy"/>
+    <iconset theme="copy" />
    </property>
    <property name="text">
     <string>Cop&amp;y...</string>
@@ -443,7 +426,7 @@
   </action>
   <action name="actionExportInstance">
    <property name="icon">
-    <iconset theme="export"/>
+    <iconset theme="export" />
    </property>
    <property name="text">
     <string>E&amp;xport...</string>
@@ -454,7 +437,7 @@
   </action>
   <action name="actionExportInstanceZip">
    <property name="icon">
-    <iconset theme="launcher"/>
+    <iconset theme="launcher" />
    </property>
    <property name="text">
     <string>Prism Launcher (zip)</string>
@@ -462,7 +445,7 @@
   </action>
   <action name="actionExportInstanceMrPack">
    <property name="icon">
-    <iconset theme="modrinth"/>
+    <iconset theme="modrinth" />
    </property>
    <property name="text">
     <string>Modrinth (mrpack)</string>
@@ -470,7 +453,7 @@
   </action>
   <action name="actionExportInstanceFlamePack">
    <property name="icon">
-    <iconset theme="flame"/>
+    <iconset theme="flame" />
    </property>
    <property name="text">
     <string>CurseForge (zip)</string>
@@ -478,7 +461,7 @@
   </action>
   <action name="actionCreateInstanceShortcut">
    <property name="icon">
-    <iconset theme="shortcut"/>
+    <iconset theme="shortcut" />
    </property>
    <property name="text">
     <string>Create Shortcut</string>
@@ -489,7 +472,7 @@
   </action>
   <action name="actionNoAccountsAdded">
    <property name="icon">
-    <iconset theme="noaccount"/>
+    <iconset theme="noaccount" />
    </property>
    <property name="text">
     <string>No accounts added!</string>
@@ -500,7 +483,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset theme="noaccount"/>
+    <iconset theme="noaccount" />
    </property>
    <property name="text">
     <string>No Default Account</string>
@@ -511,7 +494,7 @@
   </action>
   <action name="actionCloseWindow">
    <property name="icon">
-    <iconset theme="status-bad"/>
+    <iconset theme="status-bad" />
    </property>
    <property name="text">
     <string>Close &amp;Window</string>
@@ -525,7 +508,7 @@
   </action>
   <action name="actionViewInstanceFolder">
    <property name="icon">
-    <iconset theme="viewfolder"/>
+    <iconset theme="viewfolder" />
    </property>
    <property name="text">
     <string>&amp;Instances</string>
@@ -536,7 +519,7 @@
   </action>
   <action name="actionViewLauncherRootFolder">
    <property name="icon">
-    <iconset theme="viewfolder"/>
+    <iconset theme="viewfolder" />
    </property>
    <property name="text">
     <string>Launcher &amp;Root</string>
@@ -547,7 +530,7 @@
   </action>
   <action name="actionViewCentralModsFolder">
    <property name="icon">
-    <iconset theme="centralmods"/>
+    <iconset theme="centralmods" />
    </property>
    <property name="text">
     <string>&amp;Central Mods</string>
@@ -558,7 +541,7 @@
   </action>
   <action name="actionViewSkinsFolder">
    <property name="icon">
-    <iconset theme="viewfolder"/>
+    <iconset theme="viewfolder" />
    </property>
    <property name="text">
     <string>&amp;Skins</string>
@@ -569,7 +552,7 @@
   </action>
   <action name="actionViewIconsFolder">
    <property name="icon">
-    <iconset theme="viewfolder"/>
+    <iconset theme="viewfolder" />
    </property>
    <property name="text">
     <string>Instance Icons</string>
@@ -580,7 +563,7 @@
   </action>
   <action name="actionViewLogsFolder">
    <property name="icon">
-    <iconset theme="viewfolder"/>
+    <iconset theme="viewfolder" />
    </property>
    <property name="text">
     <string>Logs</string>
@@ -596,7 +579,7 @@
   </action>
   <action name="actionReportBug">
    <property name="icon">
-    <iconset theme="bug"/>
+    <iconset theme="bug" />
    </property>
    <property name="text">
     <string>Report a Bug or Suggest a Feature</string>
@@ -607,7 +590,7 @@
   </action>
   <action name="actionDISCORD">
    <property name="icon">
-    <iconset theme="discord"/>
+    <iconset theme="discord" />
    </property>
    <property name="text">
     <string>&amp;Discord Guild</string>
@@ -618,7 +601,7 @@
   </action>
   <action name="actionMATRIX">
    <property name="icon">
-    <iconset theme="matrix"/>
+    <iconset theme="matrix" />
    </property>
    <property name="text">
     <string>&amp;Matrix Space</string>
@@ -629,7 +612,7 @@
   </action>
   <action name="actionREDDIT">
    <property name="icon">
-    <iconset theme="reddit-alien"/>
+    <iconset theme="reddit-alien" />
    </property>
    <property name="text">
     <string>Sub&amp;reddit</string>
@@ -640,7 +623,7 @@
   </action>
   <action name="actionAbout">
    <property name="icon">
-    <iconset theme="about"/>
+    <iconset theme="about" />
    </property>
    <property name="text">
     <string>&amp;About %1</string>
@@ -654,7 +637,7 @@
   </action>
   <action name="actionClearMetadata">
    <property name="icon">
-    <iconset theme="refresh"/>
+    <iconset theme="refresh" />
    </property>
    <property name="text">
     <string>&amp;Clear Metadata Cache</string>
@@ -677,7 +660,7 @@
   </action>
   <action name="actionAddToPATH">
    <property name="icon">
-    <iconset theme="custom-commands"/>
+    <iconset theme="custom-commands" />
    </property>
    <property name="text">
     <string>Install to &amp;PATH</string>
@@ -688,7 +671,7 @@
   </action>
   <action name="actionFoldersButton">
    <property name="icon">
-    <iconset theme="viewfolder"/>
+    <iconset theme="viewfolder" />
    </property>
    <property name="text">
     <string>Folders</string>
@@ -699,7 +682,7 @@
   </action>
   <action name="actionHelpButton">
    <property name="icon">
-    <iconset theme="help"/>
+    <iconset theme="help" />
    </property>
    <property name="text">
     <string>Help</string>
@@ -710,7 +693,7 @@
   </action>
   <action name="actionAccountsButton">
    <property name="icon">
-    <iconset theme="noaccount"/>
+    <iconset theme="noaccount" />
    </property>
    <property name="text">
     <string>Accounts</string>
@@ -718,7 +701,7 @@
   </action>
   <action name="actionOpenWiki">
    <property name="icon">
-    <iconset theme="help"/>
+    <iconset theme="help" />
    </property>
    <property name="text">
     <string>%1 &amp;Wiki</string>
@@ -729,7 +712,7 @@
   </action>
   <action name="actionViewWidgetThemeFolder">
    <property name="icon">
-    <iconset theme="viewfolder"/>
+    <iconset theme="viewfolder" />
    </property>
    <property name="text">
     <string>&amp;Widget Themes</string>
@@ -740,7 +723,7 @@
   </action>
   <action name="actionViewIconThemeFolder">
    <property name="icon">
-    <iconset theme="viewfolder"/>
+    <iconset theme="viewfolder" />
    </property>
    <property name="text">
     <string>I&amp;con Theme</string>
@@ -749,20 +732,9 @@
     <string>Open the icon theme folder in a file browser.</string>
    </property>
   </action>
-  <action name="actionViewCatPackFolder">
-   <property name="icon">
-    <iconset theme="viewfolder"/>
-   </property>
-   <property name="text">
-    <string>Cat Packs</string>
-   </property>
-   <property name="toolTip">
-    <string>Open the cat packs folder in a file browser.</string>
-   </property>
-  </action>
   <action name="actionViewJavaFolder">
    <property name="icon">
-    <iconset theme="viewfolder"/>
+    <iconset theme="viewfolder" />
    </property>
    <property name="text">
     <string>Java</string>
@@ -779,6 +751,6 @@
    <header>ui/widgets/WideBar.h</header>
   </customwidget>
  </customwidgets>
- <resources/>
- <connections/>
+ <resources />
+ <connections />
 </ui>

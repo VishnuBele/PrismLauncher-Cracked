@@ -26,8 +26,8 @@
 #include <QStyle>
 #include <QStyleFactory>
 #include "Exception.h"
+#include "ui/themes/AuroraTheme.h"
 #include "ui/themes/BrightTheme.h"
-#include "ui/themes/CatPack.h"
 #include "ui/themes/CustomTheme.h"
 #include "ui/themes/DarkTheme.h"
 #include "ui/themes/SystemTheme.h"
@@ -48,7 +48,6 @@ ThemeManager::ThemeManager()
     m_defaultPalette = QApplication::palette();
 
     initializeThemes();
-    initializeCatPacks();
 }
 
 ThemeManager::~ThemeManager()
@@ -135,8 +134,9 @@ void ThemeManager::initializeWidgets()
 {
     themeDebugLog() << "<> Initializing Widget Themes";
     themeDebugLog() << "Loading Built-in Theme:" << addTheme(std::make_unique<SystemTheme>(m_defaultStyle, m_defaultPalette, true));
-    auto darkThemeId = addTheme(std::make_unique<DarkTheme>());
-    themeDebugLog() << "Loading Built-in Theme:" << darkThemeId;
+    themeDebugLog() << "Loading Built-in Theme:" << addTheme(std::make_unique<DarkTheme>());
+    auto auroraThemeId = addTheme(std::make_unique<AuroraTheme>());
+    themeDebugLog() << "Loading Built-in Theme:" << auroraThemeId;
     themeDebugLog() << "Loading Built-in Theme:" << addTheme(std::make_unique<BrightTheme>());
 
     themeDebugLog() << "<> Initializing System Widget Themes";
@@ -164,7 +164,7 @@ void ThemeManager::initializeWidgets()
         if (themeJson.exists()) {
             // Load "theme.json" based themes
             themeDebugLog() << "Loading JSON Theme from:" << themeJson.absoluteFilePath();
-            addTheme(std::make_unique<CustomTheme>(getTheme(darkThemeId), themeJson, true));
+            addTheme(std::make_unique<CustomTheme>(getTheme(auroraThemeId), themeJson, true));
         } else {
             // Load pure QSS Themes
             QDirIterator stylesheetFileIterator(dir.absoluteFilePath(""), { "*.qss", "*.css" }, QDir::Files);
@@ -172,7 +172,7 @@ void ThemeManager::initializeWidgets()
                 QFile customThemeFile(stylesheetFileIterator.next());
                 QFileInfo customThemeFileInfo(customThemeFile);
                 themeDebugLog() << "Loading QSS Theme from:" << customThemeFileInfo.absoluteFilePath();
-                addTheme(std::make_unique<CustomTheme>(getTheme(darkThemeId), customThemeFileInfo, false));
+                addTheme(std::make_unique<CustomTheme>(getTheme(auroraThemeId), customThemeFileInfo, false));
             }
         }
     }
@@ -206,15 +206,6 @@ QList<ITheme*> ThemeManager::getValidApplicationThemes()
     return ret;
 }
 
-QList<CatPack*> ThemeManager::getValidCatPacks()
-{
-    QList<CatPack*> ret;
-    ret.reserve(m_catPacks.size());
-    for (auto&& [id, theme] : m_catPacks) {
-        ret.append(theme.get());
-    }
-    return ret;
-}
 
 bool ThemeManager::isValidIconTheme(const QString& id)
 {
@@ -236,10 +227,6 @@ QDir ThemeManager::getApplicationThemesFolder()
     return m_applicationThemeFolder;
 }
 
-QDir ThemeManager::getCatPacksFolder()
-{
-    return m_catPacksFolder;
-}
 
 void ThemeManager::setIconTheme(const QString& name)
 {
@@ -273,84 +260,15 @@ void ThemeManager::applyCurrentlySelectedTheme(bool initial)
     setIconTheme(settings->get("IconTheme").toString());
     themeDebugLog() << "<> Icon theme set.";
     auto applicationTheme = settings->get("ApplicationTheme").toString();
-    if (applicationTheme == "") {
-        applicationTheme = m_defaultStyle;
+    if (applicationTheme.isEmpty() || !isValidApplicationTheme(applicationTheme)) {
+        applicationTheme = QStringLiteral("aurora");
     }
     setApplicationTheme(applicationTheme, initial);
     themeDebugLog() << "<> Application theme set.";
 }
 
-QString ThemeManager::getCatPack(QString catName)
-{
-    auto catIter = m_catPacks.find(!catName.isEmpty() ? catName : APPLICATION->settings()->get("BackgroundCat").toString());
-    if (catIter != m_catPacks.end()) {
-        auto& catPack = catIter->second;
-        themeDebugLog() << "applying catpack" << catPack->id();
-        return catPack->path();
-    } else {
-        themeWarningLog() << "Tried to get invalid catPack:" << catName;
-    }
 
-    return m_catPacks.begin()->second->path();
-}
 
-QString ThemeManager::addCatPack(std::unique_ptr<CatPack> catPack)
-{
-    QString id = catPack->id();
-    if (m_catPacks.find(id) == m_catPacks.end())
-        m_catPacks.emplace(id, std::move(catPack));
-    else
-        themeWarningLog() << "CatPack(" << id << ") not added to prevent id duplication";
-    return id;
-}
-
-void ThemeManager::initializeCatPacks()
-{
-    QList<std::pair<QString, QString>> defaultCats{ { "kitteh", QObject::tr("Background Cat (from MultiMC)") },
-                                                    { "rory", QObject::tr("Rory ID 11 (drawn by Ashtaka)") },
-                                                    { "rory-flat", QObject::tr("Rory ID 11 (flat edition, drawn by Ashtaka)") },
-                                                    { "teawie", QObject::tr("Teawie (drawn by SympathyTea)") } };
-    for (auto [id, name] : defaultCats) {
-        addCatPack(std::unique_ptr<CatPack>(new BasicCatPack(id, name)));
-    }
-    if (!m_catPacksFolder.mkpath("."))
-        themeWarningLog() << "Couldn't create catpacks folder";
-    themeDebugLog() << "CatPacks Folder Path:" << m_catPacksFolder.absolutePath();
-
-    QStringList supportedImageFormats;
-    for (auto format : QImageReader::supportedImageFormats()) {
-        supportedImageFormats.append("*." + format);
-    }
-    auto loadFiles = [this, supportedImageFormats](QDir dir) {
-        // Load image files directly
-        QDirIterator ImageFileIterator(dir.absoluteFilePath(""), supportedImageFormats, QDir::Files);
-        while (ImageFileIterator.hasNext()) {
-            QFile customCatFile(ImageFileIterator.next());
-            QFileInfo customCatFileInfo(customCatFile);
-            themeDebugLog() << "Loading CatPack from:" << customCatFileInfo.absoluteFilePath();
-            addCatPack(std::unique_ptr<CatPack>(new FileCatPack(customCatFileInfo)));
-        }
-    };
-
-    loadFiles(m_catPacksFolder);
-
-    QDirIterator directoryIterator(m_catPacksFolder.path(), QDir::Dirs | QDir::NoDotAndDotDot);
-    while (directoryIterator.hasNext()) {
-        QDir dir(directoryIterator.next());
-        QFileInfo manifest(dir.absoluteFilePath("catpack.json"));
-        if (manifest.isFile()) {
-            try {
-                // Load background manifest
-                themeDebugLog() << "Loading background manifest from:" << manifest.absoluteFilePath();
-                addCatPack(std::unique_ptr<CatPack>(new JsonCatPack(manifest)));
-            } catch (const Exception& e) {
-                themeWarningLog() << "Couldn't load catpack json:" << e.cause();
-            }
-        } else {
-            loadFiles(dir);
-        }
-    }
-}
 
 void ThemeManager::refresh()
 {
@@ -359,5 +277,4 @@ void ThemeManager::refresh()
     m_catPacks.clear();
 
     initializeThemes();
-    initializeCatPacks();
 }

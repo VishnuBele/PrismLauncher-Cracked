@@ -814,8 +814,6 @@ SET(LAUNCHER_SOURCES
     Markdown.cpp
 
     # Super secret!
-    KonamiCode.h
-    KonamiCode.cpp
 
     # Icons
     icons/MMCIcon.h
@@ -870,6 +868,8 @@ SET(LAUNCHER_SOURCES
     ui/themes/CustomTheme.h
     ui/themes/DarkTheme.cpp
     ui/themes/DarkTheme.h
+    ui/themes/AuroraTheme.cpp
+    ui/themes/AuroraTheme.h
     ui/themes/ITheme.cpp
     ui/themes/ITheme.h
     ui/themes/HintOverrideProxyStyle.cpp
@@ -880,10 +880,6 @@ SET(LAUNCHER_SOURCES
     ui/themes/IconTheme.h
     ui/themes/ThemeManager.cpp
     ui/themes/ThemeManager.h
-    ui/themes/CatPack.cpp
-    ui/themes/CatPack.h
-    ui/themes/CatPainter.cpp
-    ui/themes/CatPainter.h
 
     # Processes
     LaunchMode.h
@@ -1125,6 +1121,10 @@ SET(LAUNCHER_SOURCES
     ui/widgets/JavaWizardWidget.h
     ui/widgets/LabeledToolButton.cpp
     ui/widgets/LabeledToolButton.h
+    ui/widgets/NightSkyBackground.cpp
+    ui/widgets/NightSkyBackground.h
+    ui/widgets/HomeSurface.cpp
+    ui/widgets/HomeSurface.h
     ui/widgets/LanguageSelectionWidget.cpp
     ui/widgets/LanguageSelectionWidget.h
     ui/widgets/LogView.cpp
@@ -1295,6 +1295,7 @@ qt_add_resources(LAUNCHER_RESOURCES
     resources/flat/flat.qrc
     resources/flat_white/flat_white.qrc
     resources/documents/documents.qrc
+    resources/themes/themes.qrc
     resources/shaders/shaders.qrc
     "${CMAKE_CURRENT_BINARY_DIR}/../${Launcher_Branding_LogoQRC}"
 )

@@ -24,11 +24,21 @@ class InstanceProxyModel : public QSortFilterProxyModel {
    public:
     InstanceProxyModel(QObject* parent = 0);
 
+    /*!
+     * Filters the view by instance name. Used by the home screen search box:
+     * unlike setFilterFixedString() this keeps the raw string, so escaping and
+     * Qt's regex plumbing cannot turn a typed space into a non-match.
+     */
+    void setInstanceFilter(const QString& filter);
+    QString instanceFilter() const { return m_filter; }
+
    protected:
     QVariant data(const QModelIndex& index, int role) const override;
+    bool filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const override;
     bool lessThan(const QModelIndex& left, const QModelIndex& right) const override;
     bool subSortLessThan(const QModelIndex& left, const QModelIndex& right) const;
 
    private:
     QCollator m_naturalSort;
+    QString m_filter;
 };

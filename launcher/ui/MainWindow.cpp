@@ -43,6 +43,8 @@
 #include "FileSystem.h"
 
 #include "MainWindow.h"
+
+#include "ui/widgets/HomeSurface.h"
 #include "ui_MainWindow.h"
 
 #include <QDir>
@@ -125,7 +127,6 @@
 #include "modplatform/flame/FlameAPI.h"
 #include "modplatform/flame/FlameModIndex.h"
 
-#include "KonamiCode.h"
 
 #include "InstanceCopyTask.h"
 #include "InstanceDirUpdate.h"
@@ -268,12 +269,6 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         connect(q, &QShortcut::activated, APPLICATION, &Application::quit);
     }
 
-    // Konami Code
-    {
-        secretEventFilter = new KonamiCode(this);
-        connect(secretEventFilter, &KonamiCode::triggered, this, &MainWindow::konamiTriggered);
-    }
-
     // Add the news label to the news toolbar.
     {
         m_newsChecker.reset(new NewsChecker(APPLICATION->network(), BuildConfig.NEWS_RSS_URL));
@@ -331,17 +326,35 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         view->setSourceOfGroupCollapseStatus(
             [](const QString& groupName) -> bool { return APPLICATION->instances()->isGroupCollapsed(groupName); });
         connect(view, &InstanceView::groupStateChanged, APPLICATION->instances(), &InstanceList::on_GroupStateChanged);
-        ui->horizontalLayout->addWidget(view);
+        ui->horizontalLayout->setContentsMargins(0, 0, 0, 0);
+        ui->horizontalLayout->setSpacing(0);
+
+        m_home = new HomeSurface(ui->centralWidget);
+        ui->horizontalLayout->addWidget(m_home);
+        m_home->setContent(view);
+
+        connect(m_home, &HomeSurface::searchChanged, this, [this](const QString& text) {
+            if (proxymodel)
+                proxymodel->setInstanceFilter(text);
+        });
+        connect(m_home, &HomeSurface::addInstanceRequested, this, &MainWindow::on_actionAddInstance_triggered);
+        connect(m_home, &HomeSurface::accountsRequested, this, &MainWindow::on_actionManageAccounts_triggered);
+        connect(m_home, &HomeSurface::settingsRequested, this, &MainWindow::on_actionSettings_triggered);
+
+        m_home->setBackgroundAnimated(APPLICATION->settings()->get("AnimatedBackground").toBool());
     }
-    // The cat background
+    // Animated home background toggle
     {
-        // set the cat action priority here so you can still see the action in qt designer
-        ui->actionCAT->setPriority(QAction::LowPriority);
-        bool cat_enable = APPLICATION->settings()->get("TheCat").toBool();
-        ui->actionCAT->setChecked(cat_enable);
-        connect(ui->actionCAT, &QAction::toggled, this, &MainWindow::onCatToggled);
-        connect(APPLICATION, &Application::currentCatChanged, this, &MainWindow::onCatChanged);
-        setCatBackground(cat_enable);
+        auto* animatedBackgroundAction = new QAction(tr("Animated Background"), this);
+        m_animatedBackgroundAction = animatedBackgroundAction;
+        animatedBackgroundAction->setCheckable(true);
+        animatedBackgroundAction->setChecked(APPLICATION->settings()->get("AnimatedBackground").toBool());
+        connect(animatedBackgroundAction, &QAction::toggled, this, [this](bool enabled) {
+            APPLICATION->settings()->set("AnimatedBackground", enabled);
+            if (m_home)
+                m_home->setBackgroundAnimated(enabled);
+        });
+        ui->viewMenu->insertAction(ui->actionToggleStatusBar, animatedBackgroundAction);
     }
 
     // Togglable status bar
@@ -475,6 +488,12 @@ void MainWindow::retranslateUi()
         if (action->toolTip().contains("%1"))
             action->setToolTip(action->toolTip().arg(BuildConfig.LAUNCHER_DISPLAYNAME));
     }
+
+    if (m_animatedBackgroundAction)
+        m_animatedBackgroundAction->setText(tr("Animated Background"));
+
+    if (m_home)
+        m_home->retranslateUi();
 }
 
 MainWindow::~MainWindow() {}
@@ -502,28 +521,6 @@ void MainWindow::lockToolbars(bool state)
     APPLICATION->settings()->set("ToolbarsLocked", state);
 }
 
-void MainWindow::konamiTriggered()
-{
-    QString gradient =
-        " stop:0 rgba(125, 0, 0, 255), stop:0.166 rgba(125, 125, 0, 255), stop:0.333 rgba(0, 125, 0, 255), stop:0.5 rgba(0, 125, 125, "
-        "255), stop:0.666 rgba(0, 0, 125, 255), stop:0.833 rgba(125, 0, 125, 255), stop:1 rgba(125, 0, 0, 255));";
-    QString stylesheet = "background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0," + gradient;
-    if (ui->mainToolBar->styleSheet() == stylesheet) {
-        ui->mainToolBar->setStyleSheet("");
-        ui->instanceToolBar->setStyleSheet("");
-        ui->centralWidget->setStyleSheet("");
-        ui->newsToolBar->setStyleSheet("");
-        ui->statusBar->setStyleSheet("");
-        qDebug() << "Super Secret Mode DEACTIVATED!";
-    } else {
-        ui->mainToolBar->setStyleSheet(stylesheet);
-        ui->instanceToolBar->setStyleSheet("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1," + gradient);
-        ui->centralWidget->setStyleSheet("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1," + gradient);
-        ui->newsToolBar->setStyleSheet(stylesheet);
-        ui->statusBar->setStyleSheet(stylesheet);
-        qDebug() << "Super Secret Mode ACTIVATED!";
-    }
-}
 
 void MainWindow::showInstanceContextMenu(const QPoint& pos)
 {
@@ -760,19 +757,23 @@ void MainWindow::defaultAccountChanged()
         } else {
             ui->actionAccountsButton->setIcon(face);
         }
+        if (m_home)
+            m_home->setAccount(account->profileName(), QIcon(face));
         return;
     }
 
     // Set the icon to the "no account" icon.
     ui->actionAccountsButton->setIcon(QIcon::fromTheme("noaccount"));
     ui->actionAccountsButton->setText(tr("Accounts"));
+
+    if (m_home)
+        m_home->setAccount(QString(), QIcon::fromTheme("noaccount"));
 }
 
 bool MainWindow::eventFilter(QObject* obj, QEvent* ev)
 {
     if (obj == view) {
         if (ev->type() == QEvent::KeyPress) {
-            secretEventFilter->input(ev);
             QKeyEvent* keyEvent = static_cast<QKeyEvent*>(ev);
             switch (keyEvent->key()) {
                     /*
@@ -836,17 +837,7 @@ QString intListToString(const QList<int>& list)
     return slist.join(',');
 }
 
-void MainWindow::onCatToggled(bool state)
-{
-    setCatBackground(state);
-    APPLICATION->settings()->set("TheCat", state);
-}
 
-void MainWindow::setCatBackground(bool enabled)
-{
-    view->setPaintCat(enabled);
-    view->viewport()->repaint();
-}
 
 void MainWindow::runModalTask(Task* task)
 {
@@ -1334,10 +1325,6 @@ void MainWindow::on_actionViewWidgetThemeFolder_triggered()
     DesktopServices::openPath(APPLICATION->themeManager()->getApplicationThemesFolder().path(), true);
 }
 
-void MainWindow::on_actionViewCatPackFolder_triggered()
-{
-    DesktopServices::openPath(APPLICATION->themeManager()->getCatPacksFolder().path(), true);
-}
 
 void MainWindow::on_actionViewIconsFolder_triggered()
 {
@@ -1471,10 +1458,6 @@ void MainWindow::newsButtonClicked()
     news_dialog.exec();
 }
 
-void MainWindow::onCatChanged(int)
-{
-    setCatBackground(APPLICATION->settings()->get("TheCat").toBool());
-}
 
 void MainWindow::on_actionAbout_triggered()
 {
@@ -1764,6 +1747,10 @@ void MainWindow::updateStatusCenter()
         m_statusCenter->setText(
             tr("Total playtime: %1")
                 .arg(Time::prettifyDuration(timePlayed, APPLICATION->settings()->get("ShowGameTimeWithoutDays").toBool())));
+    }
+
+    if (m_home) {
+        m_home->setSummary(APPLICATION->instances()->rowCount(), timePlayed > 0 ? m_statusCenter->text() : QString());
     }
 }
 // "Instance actions" are actions that require an instance to be selected (i.e. "new instance" is not here)

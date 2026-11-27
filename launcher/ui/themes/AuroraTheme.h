@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 /*
  *  Prism Launcher - Minecraft Launcher
- *  Copyright (c) 2025 Trial97 <alexandru.tripon97@gmail.com>
+ *  Copyright (C) 2026 Prism Launcher contributors
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,22 +18,21 @@
 
 #pragma once
 
-#include <QMovie>
-#include <QPainter>
-#include <QPixmap>
-#include <QString>
+#include "ITheme.h"
 
-class CatPainter : public QObject {
-    Q_OBJECT
+/*!
+ * The launcher's built-in look: a deep, flat dark palette with an indigo
+ * accent, paired with the stylesheet in :/themes/aurora.qss.
+ */
+class AuroraTheme : public ITheme {
    public:
-    CatPainter(const QString& path, QObject* parent = nullptr);
-    virtual ~CatPainter() = default;
-    void paint(QPainter*, const QRect&);
-
-   signals:
-    void updateFrame();
-
-   private:
-    QMovie* m_movie = nullptr;
-    QPixmap m_image;
+    QString id() override;
+    QString name() override;
+    QString tooltip() override;
+    bool hasStyleSheet() override;
+    QString appStyleSheet() override;
+    QPalette colorScheme() override;
+    double fadeAmount() override;
+    QColor fadeColor() override;
+    QString qtTheme() override;
 };

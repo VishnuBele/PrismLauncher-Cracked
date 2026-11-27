@@ -37,6 +37,7 @@
 #include <QApplication>
 #include <QDebug>
 #include <QPainter>
+#include <QPainterPath>
 #include <QTextLayout>
 #include <QTextOption>
 #include <QtMath>
@@ -70,15 +71,50 @@ static void viewItemTextLayout(QTextLayout& textLayout, int lineWidth, qreal& he
 
 ListViewDelegate::ListViewDelegate(QObject* parent) : QStyledItemDelegate(parent) {}
 
+/*!
+ * Paints the instance card itself: a rounded plate that follows the theme
+ * palette, an accent ring for the selected card and a slightly brighter fill
+ * while the pointer is over it. The plate is translucent so the home
+ * background shows through between the cards.
+ */
 void drawSelectionRect(QPainter* painter, const QStyleOptionViewItem& option, const QRect& rect)
 {
-    if ((option.state & QStyle::State_Selected))
-        painter->fillRect(rect, option.palette.brush(QPalette::Highlight));
-    else {
-        QColor backgroundColor = option.palette.color(QPalette::Window);
-        backgroundColor.setAlpha(160);
-        painter->fillRect(rect, QBrush(backgroundColor));
+    const bool selected = option.state & QStyle::State_Selected;
+
+    QColor background = selected ? option.palette.color(QPalette::Highlight) : option.palette.color(QPalette::AlternateBase);
+    if (!selected)
+        background.setAlpha(212);
+
+    const qreal inset = 2.5;
+    const QRectF card = QRectF(rect).adjusted(inset, inset, -inset, -inset);
+
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing, true);
+
+    QPainterPath path;
+    path.addRoundedRect(card, 12, 12);
+    painter->fillPath(path, background);
+
+    if (selected) {
+        QColor ring = option.palette.color(QPalette::Highlight).lighter(140);
+        ring.setAlpha(210);
+        painter->setPen(QPen(ring, 1.4));
+        painter->setBrush(Qt::NoBrush);
+        painter->drawPath(path);
+    } else {
+        // AlternateBase sits very close to the window colour on a light theme,
+        // so the plate would disappear; a hairline keeps the card edges legible.
+        const qreal delta = qAbs(background.lightnessF() - option.palette.color(QPalette::Window).lightnessF());
+        if (delta < 0.12) {
+            QColor border = option.palette.color(QPalette::WindowText);
+            border.setAlpha(40);
+            painter->setPen(QPen(border, 1.0));
+            painter->setBrush(Qt::NoBrush);
+            painter->drawPath(path);
+        }
     }
+
+    painter->restore();
 }
 
 void drawFocusRect(QPainter* painter, const QStyleOptionViewItem& option, const QRect& rect)
@@ -205,7 +241,7 @@ void ListViewDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
     {
         // FIXME: unused
         // QSize textSize = viewItemTextSize ( &opt );
-        drawSelectionRect(painter, opt, textHighlightRect);
+        drawSelectionRect(painter, opt, opt.rect);
         /*
         QPalette::ColorGroup cg;
         QStyleOptionViewItem opt2(opt);

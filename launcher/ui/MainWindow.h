@@ -58,7 +58,7 @@ class QLabel;
 class MinecraftLauncher;
 class BaseProfilerFactory;
 class InstanceView;
-class KonamiCode;
+class HomeSurface;
 class InstanceTask;
 class LabeledToolButton;
 
@@ -88,10 +88,6 @@ class MainWindow : public QMainWindow {
     QMenu* createPopupMenu() override;
 
    private slots:
-    void onCatToggled(bool);
-
-    void onCatChanged(int);
-
     void on_actionAbout_triggered();
 
     void on_actionAddInstance_triggered();
@@ -115,7 +111,6 @@ class MainWindow : public QMainWindow {
 
     void on_actionViewIconThemeFolder_triggered();
     void on_actionViewWidgetThemeFolder_triggered();
-    void on_actionViewCatPackFolder_triggered();
     void on_actionViewIconsFolder_triggered();
     void on_actionViewLogsFolder_triggered();
     void on_actionViewJavaFolder_triggered();
@@ -202,8 +197,6 @@ class MainWindow : public QMainWindow {
 
     void updateNewsLabel();
 
-    void konamiTriggered();
-
     void globalSettingsClosed();
 
     void setStatusBarVisibility(bool);
@@ -221,7 +214,6 @@ class MainWindow : public QMainWindow {
 
     void addInstance(const QString& url = QString(), const QMap<QString, QString>& extra_info = {});
     void activateInstance(BaseInstance* instance);
-    void setCatBackground(bool enabled);
     void updateInstanceToolIcon(QString new_icon);
     void setSelectedInstanceById(const QString& id);
     void updateStatusCenter();
@@ -234,6 +226,8 @@ class MainWindow : public QMainWindow {
     Ui::MainWindow* ui;
     // these are managed by Qt's memory management model!
     InstanceView* view = nullptr;
+    HomeSurface* m_home = nullptr;
+    QAction* m_animatedBackgroundAction = nullptr;
     InstanceProxyModel* proxymodel = nullptr;
     QToolButton* newsLabel = nullptr;
     QLabel* m_statusLeft = nullptr;
@@ -241,7 +235,6 @@ class MainWindow : public QMainWindow {
     LabeledToolButton* changeIconButton = nullptr;
     LabeledToolButton* renameButton = nullptr;
     QToolButton* helpMenuButton = nullptr;
-    KonamiCode* secretEventFilter = nullptr;
 
     std::shared_ptr<Setting> instanceToolbarSetting = nullptr;
 

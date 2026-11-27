@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/themes">
+        <file>aurora.qss</file>
+        <file>check.png</file>
+        <file>chevron-up.png</file>
+        <file>chevron-down.png</file>
+    </qresource>
+</RCC>
